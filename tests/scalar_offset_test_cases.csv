@@ -1,0 +1,22 @@
+comment,A_start,A_end,offset,shift_left,shift_right,expand_left_start,expand_left_end,expand_right_start,expand_right_end,expand_both_start,expand_both_end
+"nonempty, even, abs(x)>len, x<0",10,20,-100,-90,-80,20,20,10,10,20,20
+"nonempty, even, abs(x)=len, x<0",10,20,-10,0,10,20,20,10,10,20,20
+"nonempty, even, abs(x)<len, x<0",10,20,-1,9,19,11,20,10,19,11,19
+"nonempty, even, x==0",10,20,0,10,20,10,20,10,20,10,20
+"nonempty, even, abs(x)<len, x>0",10,20,1,11,21,9,20,10,21,9,21
+"nonempty, even, abs(x)=len, x>0",10,20,10,20,30,0,20,10,30,0,30
+"nonempty, even, abs(x)>len, x>0",10,20,100,110,120,-90,20,10,120,-90,120
+"nonempty, odd, abs(x)>len, x<0",10,21,-100,-90,-80,21,21,10,10,21,21
+"nonempty, odd, abs(x)=len, x<0",10,21,-11,0,10,21,21,10,10,21,21
+"nonempty, odd, abs(x)<len, x<0",10,21,-1,9,20,11,21,10,20,11,20
+"nonempty, odd, x==0",10,21,0,10,21,10,21,10,21,10,21
+"nonempty, odd, abs(x)<len, x>0",10,21,1,11,20,9,21,10,22,9,22
+"nonempty, odd, abs(x)=len, x>0",10,21,11,20,30,-1,21,10,32,-1,32
+"nonempty, odd, abs(x)>len, x>0",10,21,100,110,120,-90,21,10,121,-90,121
+"empty, abs(x)>len, x<0",10,10,-100,-90,-90,10,10,10,10,10,10
+"empty, abs(x)=len, x<0",10,10,-10,0,0,10,10,10,10,10,10
+"empty, abs(x)<len, x<0",10,10,-1,9,9,10,10,10,10,10,10
+"empty, x==0",10,10,0,10,10,10,10,10,10,10,10
+"empty, abs(x)<len, x>0",10,10,1,11,11,9,10,10,11,9,11
+"empty, abs(x)=len, x>0",10,10,10,20,20,0,10,10,20,0,20
+"empty, abs(x)>len, x>0",10,10,100,110,110,-90,10,10,110,-90,110

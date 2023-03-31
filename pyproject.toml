@@ -1,0 +1,41 @@
+[build-system]
+requires = [
+    "setuptools>=61.0"
+]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "PandasRanges"
+version = "0.7"
+authors = [
+    { name = "Michał Denkiewicz", email = "michal.denkiewicz@datascience.edu.pl" },
+]
+description = "Pandas-style ranges"
+readme = "README.md"
+requires-python = ">=3.9"
+license = {file = "LICENSE.txt"}
+keywords = ["range", "region", "segment", "pandas"]
+classifiers = [
+    "Private :: Do Not Upload",
+    "Programming Language :: Python :: 3",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent"
+]
+
+dependencies = [
+    "pandas>=1.5.2",
+    "numpy>=1.24.0"
+]
+
+[project.optional-dependencies]
+test = [
+    "pytest>=7.2.1"
+]
+
+[tool.pytest.ini_options]
+addopts = [
+    "--import-mode=importlib",
+]
+pythonpath = [
+  "src"
+]

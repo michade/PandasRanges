@@ -1,0 +1,23 @@
+comment,A_start,A_end,coord,distance,offset,contains,coincides,clip_left_start,clip_left_end,clip_right_start,clip_right_end,split_at_left_start,split_at_left_end,split_at_right_start,split_at_right_end
+"nonempty, even, a<A",10,20,0,10,10,F,F,10,20,0,0,0,0,10,20
+"nonempty, even, a<A",10,20,9,1,1,F,F,10,20,9,9,9,9,10,20
+"nonempty, even, touching, a<A",10,20,10,0,0,T,T,10,20,10,10,10,10,10,20
+"nonempty, even, a in A",10,20,11,0,-1,T,T,11,20,10,11,10,11,11,20
+"nonempty, even, a in A (middle)",10,20,14,0,-4,T,T,14,20,10,14,10,14,14,20
+"nonempty, even, a in A (middle)",10,20,15,0,-5,T,T,15,20,10,15,10,15,15,20
+"nonempty, even, a in A (middle)",10,20,16,0,-4,T,T,16,20,10,16,10,16,16,20
+"nonempty, even, a in A",10,20,19,0,-1,T,T,19,20,10,19,10,19,19,20
+"nonempty, even, a > A, touching",10,20,20,1,0,F,T,20,20,10,20,10,20,20,20
+"nonempty, even, a > A",10,20,21,1,1,F,F,21,21,10,20,10,20,21,21
+"nonempty, even, a > A",10,20,30,10,10,F,F,30,30,10,20,10,20,30,30
+"nonempty, odd, a in A (middle)",10,21,14,0,-4,T,T,14,21,10,14,10,14,14,21
+"nonempty, odd, a in A (middle)",10,21,15,0,-5,T,T,15,21,10,15,10,15,15,21
+"nonempty, odd, a in A (middle)",10,21,16,0,-4,T,T,16,21,10,16,10,16,16,21
+"empty, even, a<A",10,10,0,10,10,F,F,10,10,0,0,0,0,10,10
+"empty, even, a<A",10,10,9,1,1,F,F,10,10,9,9,9,9,10,10
+"empty, even, a==A",10,10,10,0,0,F,T,10,10,10,10,10,10,10,10
+"empty, even, a>A",10,10,11,1,1,F,F,11,11,10,10,10,10,11,11
+"empty, odd, a<A",11,11,0,11,11,F,F,11,11,0,0,0,0,11,11
+"empty, odd, a<A",11,11,10,1,1,F,F,11,11,10,10,10,10,11,11
+"empty, odd, a==A",11,11,11,0,0,F,T,11,11,11,11,11,11,11,11
+"empty, odd, a>A",11,11,12,1,1,F,F,12,12,11,11,11,11,12,12

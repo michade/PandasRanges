@@ -1,0 +1,29 @@
+comment,A_start,A_end,B_start,B_end,AB_or__left_start,AB_or__left_end,AB_or__right_start,AB_or__right_end,AB_sup_start,AB_sup_end,AB_and__start,AB_and__end,AB_clip_start,AB_clip_end,BA_clip_start,BA_clip_end,AB_gap_between_start,AB_gap_between_end,AB_eq_,AB_ne_,AB_contains,BA_contains,AB_is_contained_in,BA_is_contained_in,AB_is_subset_of,BA_is_subset_of,AB_is_superset_of,BA_is_superset_of,AB_is_separated_from,AB_intersects_elementwise,AB_distance,AB_offset,AB_overlap
+"nonempty, A<B",10,20,30,50,10,20,30,50,10,50,30,30,30,30,20,20,20,30,F,T,F,F,F,F,F,F,F,F,T,F,10,10,0
+"nonempty, A<B",19,29,30,50,19,29,30,50,19,50,30,30,30,30,29,29,29,30,F,T,F,F,F,F,F,F,F,F,T,F,1,1,0
+"nonempty, A next to B, A<B",20,30,30,50,20,50,50,50,20,50,30,30,30,30,30,30,30,30,F,T,F,F,F,F,F,F,F,F,F,F,0,0,0
+"nonempty, overlap A<B",21,31,30,50,21,50,50,50,21,50,30,31,30,31,30,31,31,31,F,T,F,F,F,F,F,F,F,F,F,T,0,-1,1
+"nonempty, A in B",30,40,30,50,30,50,50,50,30,50,30,40,30,40,30,40,40,40,F,T,F,T,T,F,T,F,F,T,F,T,0,-10,10
+"nonempty, A == B",30,50,30,50,30,50,50,50,30,50,30,50,30,50,30,50,50,50,T,F,T,T,T,T,T,T,T,T,F,T,0,-20,20
+"nonempty, A in B",31,41,30,50,30,50,50,50,30,50,31,41,31,41,31,41,41,41,F,T,F,T,T,F,T,F,F,T,F,T,0,-11,10
+"nonempty, A in B",39,49,30,50,30,50,50,50,30,50,39,49,39,49,39,49,49,49,F,T,F,T,T,F,T,F,F,T,F,T,0,-11,10
+"nonempty, A in B",40,50,30,50,30,50,50,50,30,50,40,50,40,50,40,50,50,50,F,T,F,T,T,F,T,F,F,T,F,T,0,-10,10
+"nonempty, overlap A>B",41,51,30,50,30,51,51,51,30,51,41,50,41,50,41,50,50,50,F,T,F,F,F,F,F,F,F,F,F,T,0,-9,9
+"nonempty, overlap A>B",49,59,30,50,30,59,59,59,30,59,49,50,49,50,49,50,50,50,F,T,F,F,F,F,F,F,F,F,F,T,0,-1,1
+"nonempty, A next to B, A>B",50,60,30,50,30,60,60,60,30,60,50,50,50,50,50,50,50,50,F,T,F,F,F,F,F,F,F,F,F,F,0,0,0
+"nonempty, A>B",51,61,30,50,30,50,51,61,30,61,51,51,50,50,51,51,50,51,F,T,F,F,F,F,F,F,F,F,T,F,1,1,0
+"nonempty, A>B",60,70,30,50,30,50,60,70,30,70,60,60,50,50,60,60,50,60,F,T,F,F,F,F,F,F,F,F,T,F,10,10,0
+"A empty, A<B",20,20,30,50,20,20,30,50,20,50,30,30,30,30,20,20,20,30,F,T,F,F,F,F,T,F,F,T,T,F,10,10,0
+"A empty, A<B",29,29,30,50,29,29,30,50,29,50,30,30,30,30,29,29,29,30,F,T,F,F,F,F,T,F,F,T,T,F,1,1,0
+"A empty, A next to B, A<B",30,30,30,50,30,50,50,50,30,50,30,30,30,30,30,30,30,30,F,T,F,T,T,F,T,F,F,T,F,F,0,0,0
+"A empty, A in B",31,31,30,50,30,50,50,50,30,50,31,31,31,31,31,31,31,31,F,T,F,T,T,F,T,F,F,T,F,F,0,-1,0
+"A empty, A in B",40,40,30,50,30,50,50,50,30,50,40,40,40,40,40,40,40,40,F,T,F,T,T,F,T,F,F,T,F,F,0,-10,0
+"A empty, A in B",49,49,30,50,30,50,50,50,30,50,49,49,49,49,49,49,49,49,F,T,F,T,T,F,T,F,F,T,F,F,0,-1,0
+"A empty, A next to B, A<B",50,50,30,50,30,50,50,50,30,50,50,50,50,50,50,50,50,50,F,T,F,F,F,F,T,F,F,T,F,F,0,0,0
+"A empty, A>B",51,51,30,50,30,50,51,51,30,51,51,51,50,50,51,51,50,51,F,T,F,F,F,F,T,F,F,T,T,F,1,1,0
+"A empty, A>B",60,60,30,50,30,50,60,60,30,60,60,60,50,50,60,60,50,60,F,T,F,F,F,F,T,F,F,T,T,F,10,10,0
+"both empty, A<B",20,20,30,30,20,20,30,30,20,30,30,30,30,30,20,20,20,30,F,T,F,F,F,F,T,T,T,T,T,F,10,10,0
+"both empty, A<B",29,29,30,30,29,29,30,30,29,30,30,30,30,30,29,29,29,30,F,T,F,F,F,F,T,T,T,T,T,F,1,1,0
+"both empty, A == B",30,30,30,30,30,30,30,30,30,30,30,30,30,30,30,30,30,30,T,F,T,T,T,T,T,T,T,T,F,F,0,0,0
+"both empty, A>B",31,31,30,30,30,30,31,31,30,31,31,31,30,30,31,31,30,31,F,T,F,F,F,F,T,T,T,T,T,F,1,1,0
+"both empty, A>B",40,40,30,30,30,30,40,40,30,40,40,40,30,30,40,40,30,40,F,T,F,F,F,F,T,T,T,T,T,F,10,10,0
