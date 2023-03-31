@@ -1,5 +1,7 @@
+import itertools
 from functools import partial
 from typing import Dict
+from math import prod
 
 import pandas as pd
 import pytest
@@ -10,68 +12,167 @@ from pytest import param
 from PandasRanges.ranges import *
 from .testing_utils import TestCasesCsv, Vectorizer, make_pytest_id
 
-# _RangeSeries_min_max_test_cases = {
-#     'ungrouped': (
-#         DataFrame({
-#             'start': [50, 10],
-#             'end': [70, 30]
-#         }),
-#         None,
-#         10, 70
-#     ),
-#     'one_level': (
-#         DataFrame({
-#             'g1': ['A', 'B', 'A', 'B'],
-#             'start': [50, 20, 10, 40],
-#             'end': [70, 20, 30, 50]
-#         }).set_index(['g1']),
-#         ['g1'],
-#         pd.Series([10, 20], index=pd.Index(['A', 'B'], name='g1')),
-#         pd.Series([70, 50], index=pd.Index(['A', 'B'], name='g1'))
-#     ),
-#     'two_level': (
-#         DataFrame({
-#             'g1': ['A', 'B', 'A', 'B', 'B'],
-#             'g2': ['X', 'X', 'X', 'X', 'Y'],
-#             'start': [50, 20, 10, 40, 5],
-#             'end': [70, 20, 30, 50, 10]
-#         }).set_index(['g1', 'g2']),
-#         ['g1', 'g2'],
-#         pd.Series([10, 20, 5],
-#                   index=pd.MultiIndex.from_tuples([('A', 'X'), ('B', 'X'), ('B', 'Y')], names=['g1', 'g2'])),
-#         pd.Series([70, 50, 10],
-#                   index=pd.MultiIndex.from_tuples([('A', 'X'), ('B', 'X'), ('B', 'Y')], names=['g1', 'g2']))
-#     ),
-#     '1st_level_only': (
-#         DataFrame({
-#             'g1': ['A', 'B', 'A', 'B'],
-#             'g2': ['X', 'X', 'Y', 'Y'],
-#             'start': [50, 20, 10, 40],
-#             'end': [70, 20, 30, 50]
-#         }).set_index(['g1', 'g2']),
-#         ['g1'],
-#         pd.Series([10, 20], index=pd.Index(['A', 'B'], name='g1')),
-#         pd.Series([70, 50], index=pd.Index(['A', 'B'], name='g1'))
-#     ),
-#     '2nd_level_only': (
-#         DataFrame({
-#             'g1': ['A', 'B', 'A', 'B'],
-#             'g2': ['X', 'X', 'Y', 'Y'],
-#             'start': [50, 20, 10, 40],
-#             'end': [70, 20, 30, 50]
-#         }).set_index(['g1', 'g2']),
-#         ['g2'],
-#         pd.Series([20, 10], index=pd.Index(['X', 'Y'], name='g2')),
-#         pd.Series([70, 50], index=pd.Index(['X', 'Y'], name='g2'))
-#     ),
-# }
+
+def make_simple_df(start, end, names=('start', 'end')):
+    return DataFrame({names[0]: start, names[1]: end}, dtype=int)
 
 
-# def test__RangeSeries_max(RangeSeries_min_max_cases):
-#     df, _, expected_max = RangeSeries_min_max_cases
-#     iv = RangeSeries(df)
-#     result = iv.max(by=groups)
-#     if isinstance(expected_max, int):
-#         assert result == expected_max
-#     else:
-#         assert_series_equal(result, expected_max, check_names=False)
+def add_groups(df, keep_index=True, **name_levels):
+    index_levels = [list(lvls) for lvls in name_levels.values()]
+    index_names = list(name_levels.keys())
+    if keep_index:
+        index_levels.append(df.index)
+        index_names.append(df.index.name)
+    n_groups = prod(len(lvls) for lvls in index_levels[:-1])
+    index = pd.MultiIndex.from_product(index_levels)
+    index.names = index_names
+    df = pd.concat([df] * n_groups)
+    df.index = index
+    return df
+
+
+def make_grouped_df(start, end, names=('start', 'end'), keep_index=True, **name_levels):
+    df = make_simple_df(start, end, names=names)
+    return add_groups(df, keep_index=keep_index, **name_levels)
+
+
+def make_grouped_ranges(df, keep_index=True, **name_levels):
+    df = add_groups(df, keep_index=keep_index, **name_levels)
+    def _make_isntance():
+        return RangeSeries(df)
+    return _make_isntance
+
+
+class RangesBasicTestCases:
+    disjoint_1 = make_simple_df(
+        [10, 50, 60],
+        [30, 50, 80]
+    )
+    disjoint_2 = make_simple_df(
+        [20, 50],
+        [40, 70]
+    )
+    clustered_1 = make_simple_df(
+        [10, 40, 50, 70],
+        [30, 80, 60, 90]
+    )
+    clustered_2 = make_simple_df(
+        [20, 30, 0],
+        [40, 50, 90]
+    )
+    empty = make_simple_df([], [])
+    onerow = make_simple_df([10], [20])
+
+
+basic_dfs = RangesBasicTestCases()
+
+
+def test__make_simple_df():
+    expected = pd.DataFrame({'start': [1, 2], 'end': [3, 4]})
+    result = make_simple_df([1, 2], [3, 4])
+    assert_frame_equal(result, expected)
+
+
+def test__add_groups__drop_index():
+    expected = DataFrame({
+        'start': [10, 20] * 6,
+        'end': [30, 40] * 6,
+    })
+    expected.index = pd.MultiIndex.from_product(
+        [list('ABC'), [5, 7], list('XY')],
+        names=['l1', 'l2', 'l3']
+    )
+    df = make_simple_df([10, 20], [30, 40])
+    result = add_groups(df, keep_index=False, l1='ABC', l2=[5, 7], l3=['X', 'Y'])
+    assert_frame_equal(result, expected)
+
+
+def test__add_groups__keep_index():
+    expected = DataFrame({
+        'start': [10, 20] * 6,
+        'end': [30, 40] * 6,
+    })
+    expected.index = pd.MultiIndex.from_product(
+        [list('ABC'), [5, 7], range(2)],
+        names=['l1', 'l2', None]
+    )
+    df = make_simple_df([10, 20], [30, 40])
+    result = add_groups(df, l1='ABC', l2=[5, 7])
+    assert_frame_equal(result, expected)
+
+
+def test__make_grouped_df__drop_index():
+    expected = DataFrame({
+        'start': [10, 20] * 6,
+        'end': [30, 40] * 6,
+    })
+    expected.index = pd.MultiIndex.from_product(
+        [list('ABC'), [5, 7], list('XY')],
+        names=['l1', 'l2', 'l3']
+    )
+    result = make_grouped_df([10, 20], [30, 40], keep_index=False, l1='ABC', l2=[5, 7], l3=['X', 'Y'])
+    assert_frame_equal(result, expected)
+
+
+def test__make_grouped_df__keep_index():
+    expected = DataFrame({
+        'start': [10, 20] * 6,
+        'end': [30, 40] * 6,
+    })
+    expected.index = pd.MultiIndex.from_product(
+        [list('ABC'), [5, 7], range(2)],
+        names=['l1', 'l2', None]
+    )
+    result = make_grouped_df([10, 20], [30, 40], l1='ABC', l2=[5, 7])
+    assert_frame_equal(result, expected)
+
+
+def test__make_grouped_ranges__drop_index():
+    expected_df = DataFrame({
+        'start': [10, 20] * 6,
+        'end': [30, 40] * 6,
+    })
+    expected_df.index = pd.MultiIndex.from_product(
+        [list('ABC'), [5, 7], list('XY')],
+        names=['l1', 'l2', 'l3']
+    )
+    df = make_simple_df([10, 20], [30, 40])
+    expected = RangeSeries(expected_df)
+    result = make_grouped_ranges(df, keep_index=False, l1='ABC', l2=[5, 7], l3=['X', 'Y'])()
+    assert_ranges_equal(result, expected)
+
+
+def test__make_grouped_ranges__keep_index():
+    expected_df = DataFrame({
+        'start': [10, 20] * 6,
+        'end': [30, 40] * 6,
+    })
+    expected_df.index = pd.MultiIndex.from_product(
+        [list('ABC'), [5, 7], range(2)],
+        names=['l1', 'l2', None]
+    )
+    expected = RangeSeries(expected_df)
+    df = make_simple_df([10, 20], [30, 40])
+    result = make_grouped_ranges(df, l1='ABC', l2=[5, 7])()
+    assert_ranges_equal(result, expected)
+
+
+#######################################################################################
+# GROUPING
+#######################################################################################
+
+
+@pytest.mark.parametrize(
+    'ranges,groups', [
+        # (make_grouped_ranges(basic_dfs.disjoint_1, l1='ABC', l2='XY'), []),  # TODO: what then?
+        (make_grouped_ranges(basic_dfs.disjoint_1, l1='ABC', l2='XY'), ['l1']),
+        (make_grouped_ranges(basic_dfs.disjoint_1, l1='ABC', l2='XY'), ['l2']),
+        (make_grouped_ranges(basic_dfs.disjoint_1, l1='ABC', l2='XY'), ['l1', 'l2'])
+    ],
+    scope='session'
+)
+def test__RangeSeriesGroupBy_init(ranges, groups):
+    ranges = ranges()
+    result = RangeSeriesGroupBy(ranges, groups)
+    assert result.grouping_names == tuple(groups)
+    # TODO: more tests

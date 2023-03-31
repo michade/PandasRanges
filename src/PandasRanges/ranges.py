@@ -213,7 +213,6 @@ class RangeSeries(object):
     def set_index(self, new_index: pd.Index) -> RangeSeries:
         return RangeSeries(self._start, self._end, set_index=new_index)
 
-    # TODO: test
     def reset_index(self, labels=None, drop=True, keep=None) -> Union[RangeSeries, DataFrame]:
         if labels is None:
             if keep is None:
@@ -263,7 +262,6 @@ class RangeSeries(object):
         indices = ~self.is_empty()
         return RangeSeries(self._start[indices], self._end[indices])
 
-    # TODO: test
     def subset(self, indices):
         return RangeSeries(self._start.iloc[indices], self._end.iloc[indices])
 
@@ -877,9 +875,9 @@ def range_set_intersection(
 ) -> RangeSeries:
     if groups_a is not None and groups_b is None:
         groups_b = groups_a
-    prepared_a = ranges_a.sort(groups_a).union_self()
-    prepared_b = ranges_b.sort(groups_b).union_self()
-    pair_ids = overlapping_pairs_grouped(ranges_a, ranges_b, groups_a, groups_b)
+    prepared_a = ranges_a.groupby(groups_a).sort().union_self()
+    prepared_b = ranges_b.groupby(groups_b).sort().union_self()
+    pair_ids = overlapping_pairs_grouped(prepared_a, prepared_b, groups_a, groups_b)
     starts = np.maximum(
         ranges_a.start.iloc[pair_ids[:, 0]],
         ranges_b.start.iloc[pair_ids[:, 1]]
