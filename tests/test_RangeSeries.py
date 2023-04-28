@@ -1,3 +1,4 @@
+import itertools
 from dataclasses import dataclass
 from functools import partial
 
@@ -412,7 +413,7 @@ def test__RangeSeries_set_index():
 @pytest.mark.parametrize(
     'labels,keep,expected_index',
     [
-        (None, False, None),
+        (None, False, pd.RangeIndex(3)),
         ([], False, None),
         (['l2'], False, pd.MultiIndex.from_tuples([('A', 1), ('B', 1), ('B', 1)], names=['l1', 'l3'])),
         (['l1', 'l2'], False, pd.Index([1, 1, 1], name='l3')),
@@ -897,24 +898,122 @@ def test__RangeSeries_split_at_ratio(range, ratio, expected_left, expected_right
     assert_ranges_equal(result_right, expected_right)
 
 
+
+@pytest.mark.parametrize(
+    'coords_start,coords_end,size,start,expected_start_bin,expected_end_bin',
+    [
+        ([], [], 10, 0, [], []),
+        (
+            [
+                -1, -1, -1, -1, -1, -1,
+                0, 0, 0, 0, 0,
+                1, 1, 1, 1,
+                2, 2, 2,
+                3, 3,
+                4
+            ],
+            [
+                -1, 0, 1, 2, 3, 4,
+                0, 1, 2, 3, 4,
+                1, 2, 3, 4,
+                2, 3, 4,
+                3, 4,
+                4
+            ],
+            3, 0,
+            [  # ends = -1, 0, 1, 2, 3, 4
+                -1, -1, -1, -1, -1, -1,  # start = -1
+                0, 0, 0, 0, 0,  # start = 0
+                0, 0, 0, 0,  # start = 1
+                0, 0, 0,  # start = 2
+                1, 1,  # start = 3
+                1,  # start = 4
+            ],
+            [  # ends = -1, 0, 1, 2, 3, 4
+                0, 0, 1, 1, 1, 2,  # start = -1
+                1, 1, 1, 1, 2,  # start = 0
+                1, 1, 1, 2,  # start = 1
+                1, 1, 2,  # start = 2
+                2, 2,  # start = 3
+                2,  # start = 4
+            ],
+        ),
+        (
+            [9, 10, 11, 20, 20, 20],
+            [39, 40, 41, 29, 50, 31],
+            10, 0,
+            [0, 1, 1, 2, 2, 2],
+            [4, 4, 5, 3, 5, 4]
+        ),
+        (
+            [9, 10, 11, 21, 21, 21],
+            [40, 41, 42, 29, 50, 31],
+            10, 1,
+            [0, 0, 1, 2, 2, 2],
+            [4, 4, 5, 3, 5, 3]
+        )
+    ],
+    scope='session',  ids=['empty', 'step3start0grid', 'step10start0', 'step10start1']
+)
+def test__RangeSeries_bin_indices(coords_start, coords_end, size, start, expected_start_bin, expected_end_bin):
+    iv = RangeSeries(coords_start, coords_end)
+    expected = RangeSeries(expected_start_bin, expected_end_bin)
+    result = iv.bin_indices(size=size, start=start)
+    assert_ranges_equal(result, expected)
+
+
 @pytest.mark.parametrize(
     'coords_start,coords_end,size,start,expected_start,expected_end',
     [
         ([], [], 10, 0, [], []),
         (
-                [0, 1, 10, 11, 55], [20, 51, 10, 11, 60],
+                [
+                    -1, -1, -1, -1, -1, -1,
+                    0, 0, 0, 0, 0,
+                    1, 1, 1, 1,
+                    2, 2, 2,
+                    3, 3,
+                    4
+                ],
+                [
+                    -1, 0, 1, 2, 3, 4,
+                    0, 1, 2, 3, 4,
+                    1, 2, 3, 4,
+                    2, 3, 4,
+                    3, 4,
+                    4
+                ],
+                3, 0,
+                [  # ends = -1, 0, 1, 2, 3, 4
+                    -3, -3, -3, -3, -3, -3,  # start = -1
+                    0, 0, 0, 0, 0,  # start = 0
+                    0, 0, 0, 0,  # start = 1
+                    0, 0, 0,  # start = 2
+                    3, 3,  # start = 3
+                    3,  # start = 4
+                ],
+                [  # ends = -1, 0, 1, 2, 3, 4
+                    0, 0, 3, 3, 3, 6,  # start = -1
+                    3, 3, 3, 3, 6,  # start = 0
+                    3, 3, 3, 6,  # start = 1
+                    3, 3, 6,  # start = 2
+                    6, 6,  # start = 3
+                    6,  # start = 4
+                ],
+        ),
+        (
+                [9, 10, 11, 20, 20, 20],
+                [39, 40, 41, 29, 50, 31],
                 10, 0,
-                [0, 0, 1, 1, 5], [2, 5, 1, 1, 6]
+                [0, 10, 10, 20, 20, 20],
+                [40, 40, 50, 30, 50, 40]
         ),
         (
-                [1, 10, 11, 55], [51, 10, 11, 60],
+                [9, 10, 11, 21, 21, 21],
+                [40, 41, 42, 29, 50, 31],
                 10, 1,
-                [0, 0, 1, 5], [5, 0, 1, 5]
-        ),
-        (
-                [0, 1, 10, 11, 55], [20, 51, 10, 11, 60],
-                5, 0,
-                [0, 0, 2, 2, 11], [4, 10, 2, 2, 12]
+                [1, 1, 11, 21, 21, 21],
+                [41, 41, 51, 31, 51, 31]
         )
     ],
     scope='session', ids=['empty', 'step10start0', 'step10start1', 'step5start0']

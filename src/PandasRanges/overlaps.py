@@ -24,13 +24,13 @@ def overlapping_pairs(start_a: ndarray, end_a: ndarray, start_b: ndarray, end_b:
     min_open_ends = np.array([sentinel for _ in range(n_streams)], dtype=int)  # coordinates are > 0
     n_open = n_streams  # n_open = #streams with data + #min_open_ends queues with data
     while n_open > 0:
-        if next_starts.min() <= min_open_ends.min():  # "=" is important here: starts before ends
+        if next_starts.min() < min_open_ends.min():  # "=" is important here: starts before ends
             # next point is the start of a region -> we open that region
             stream_idx = next_starts.argmin()
             i = idxs[stream_idx]  # index of current region in stream
             end = ends[stream_idx][i]
-            # end == start for a region of length 0, end == start - 1 for an empty region
-            if end < next_starts[stream_idx] - 1:
+            # end == start for an empty region
+            if end < next_starts[stream_idx]:
                 raise ValueError(f"Malformed region in argument {stream_idx + 1}: f{next_starts[stream_idx]}-{end}")
             if len(open_ranges[stream_idx]) == 0:
                 n_open += 1
@@ -48,7 +48,7 @@ def overlapping_pairs(start_a: ndarray, end_a: ndarray, start_b: ndarray, end_b:
             else:  # end of input -> close stream
                 next_starts[stream_idx] = sentinel
                 n_open -= 1
-        else:  # next_starts.min() > min_open_ends.min()
+        else:  # next_starts.min() >= min_open_ends.min()
             # next point is the end of a region -> we close that region
             stream_idx = min_open_ends.argmin()
             i, end = open_ranges[stream_idx].pop()

@@ -289,9 +289,9 @@ def test__overlapping_pairs_grouped__series(overlapping_pairs_grouped_cases):
     'coords,size,start,expected_bins',
     [
         ([], 10, 0, []),
-        ([0, 1, 10, 11, 55], 10, 0, [0, 0, 1, 1, 5]),
-        ([1, 10, 11, 55], 10, 1, [0, 0, 1, 5]),
-        ([0, 1, 10, 11, 55], 5, 0, [0, 0, 2, 2, 11])
+        ([0, 1, 9, 10, 11, 55], 10, 0, [0, 0, 0, 1, 1, 5]),
+        ([0, 1, 9, 10, 11, 55], 10, 1, [-1, 0, 0, 0, 1, 5]),
+        ([0, 1, 9, 10, 11, 55], 5, 0, [0, 0, 1, 2, 2, 11])
     ],
     scope='session', ids=['empty', 'step10start0', 'step10start1', 'step5start0']
 )

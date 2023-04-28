@@ -7,6 +7,7 @@
 * implement iloc, iat
 * think about str/repr
 * consider naming: contains, is_superset_of, is_contained_in, is_subset_of, intersects_elementwise, is_separated_from, overlap
+* binning
 
 ## PandasRangesGroupby class
 

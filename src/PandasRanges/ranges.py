@@ -216,7 +216,7 @@ class RangeSeries(object):
     def reset_index(self, labels=None, drop=True, keep=None) -> Union[RangeSeries, DataFrame]:
         if labels is None:
             if keep is None:
-                labels = []
+                labels = self.index.names
         elif keep is not None:
             raise ValueError('Cannot specify  both "labels" and "keep"')
         if keep is not None:
@@ -393,10 +393,16 @@ class RangeSeries(object):
         coord = np.where(ratio >= 0, self._start, self._end) + (self.length * ratio).round().astype(self.dtype)
         return self.split_at(coord)
 
+    def bin_indices(self, size: int, start: int = 0) -> RangeSeries:
+        first_bin = bin_coords(self.start, size, start)
+        last_bin = bin_coords(np.maximum(self.start, self.end - 1), size, start) + 1
+        return RangeSeries(first_bin, last_bin, set_names=self.names)
+
     def bin(self, size: int, start: int = 0) -> RangeSeries:
-        bin_start = bin_coords(self.start, size, start)
-        bin_end = bin_coords(self.end, size, start)
-        return RangeSeries(bin_start, bin_end, set_names=self.names)
+        bin_ids = self.bin_indices(size, start)
+        bin_start = start + bin_ids.start * size
+        bin_end = start + bin_ids.end * size
+        return RangeSeries(bin_start, bin_end, set_names=bin_ids.names)
 
     #######################################################################################
     # 7. HORIZONTAL OPERATIONS (ELEMENT-WISE WITH OTHER RangeSeries INSTANCE)
@@ -948,7 +954,7 @@ def merge_sorted_ranges(
         mergred_indexes = list(_match_dict_items(
             _get_group_indices(ranges_a, groups_a),
             _get_group_indices(ranges_b, groups_b)
-        )) # TODO: list
+        ))  # TODO: list
         group_start = 0
         b_offset = len(ranges_a)
         index_perm = np.full(n, -1, dtype=int)
@@ -987,7 +993,6 @@ def merge_sorted_ranges(
 def bin_coords(coords: Union[ndarray, Series], size: int, start: int = 0) \
         -> Union[ndarray, Series]:
     assert size > 0
-    assert (coords >= start).all()
     bin_no = (coords - start) // size
     return bin_no
 
@@ -1000,8 +1005,14 @@ def bin_coords(coords: Union[ndarray, Series], size: int, start: int = 0) \
 def assert_ranges_equal(actual: RangeSeries, expected: RangeSeries, check_names=True):
     assert isinstance(actual, RangeSeries)
     assert isinstance(expected, RangeSeries)
-    pd.testing.assert_series_equal(actual.start, expected.start, check_index_type=False, check_names=check_names)
-    pd.testing.assert_series_equal(actual.end, expected.end, check_index_type=False, check_names=check_names)
+    pd.testing.assert_series_equal(
+        actual.start, expected.start, obj='Starts',
+        check_index_type=False, check_names=check_names
+    )
+    pd.testing.assert_series_equal(
+        actual.end, expected.end, obj='Ends',
+        check_index_type=False, check_names=check_names
+    )
     pd.testing.assert_index_equal(actual.index, expected.index, check_names=check_names)
 
 
