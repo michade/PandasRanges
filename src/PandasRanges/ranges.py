@@ -343,7 +343,7 @@ class RangeSeries(object):
     def clip(
             self,
             left: Union[Series, ndarray, int, None] = None,
-            right: Optional[Series, ndarray, int, None] = None
+            right: Union[Series, ndarray, int, None] = None
     ):
         new_start = self._start
         new_end = self._end
@@ -609,6 +609,13 @@ class RangeSeries(object):
         df[self._start.name] = self._start
         df[self._end.name] = self._end
         return self
+
+    # TODO: test
+    @staticmethod
+    def sort_with_df(df, by, *ranges, ascending=True, kind='quicksort', na_position='last', key=None):
+        df = df.sort_values(by, ascending=ascending, kind=kind, na_position=na_position, key=key)
+        ranges = [r(df) for r in ranges]
+        return df, *ranges
 
 
 #######################################################################################

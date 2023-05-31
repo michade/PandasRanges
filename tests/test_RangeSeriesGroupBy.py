@@ -10,7 +10,7 @@ from pandas.testing import assert_series_equal, assert_frame_equal, assert_index
 from pytest import param
 
 from PandasRanges.ranges import *
-from .testing_utils import TestCasesCsv, Vectorizer, make_pytest_id
+from PandasRanges.testing_utils import TestCasesCsv, Vectorizer, make_pytest_id
 
 
 def make_simple_df(start, end, names=('start', 'end')):
