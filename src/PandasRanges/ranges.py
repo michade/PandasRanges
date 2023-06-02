@@ -733,12 +733,15 @@ class RangeSeriesGroupBy(object):
     # TODO: test
     # TODO: what if self-overlapping?
     def union_self(self) -> RangeSeries:
-        cluster_ids = overlapping_clusters_grouped(self._ranges, groups=self._indices)
-        if cluster_ids.max() == len(cluster_ids) - 1:
-            return self._ranges
+        cluster_ids = overlapping_clusters_grouped(self._ranges, groups=self._indices)        
+        to_drop = [lvl for lvl in self._ranges.index.names if lvl not in self._level_names]
+        new_index = self._ranges.index
+        if len(to_drop) > 0:
+            new_index = new_index.droplevel(to_drop)
+        idx = new_index.to_frame().groupby(cluster_ids).first().set_index(new_index.names).index
         start = self._ranges.start.groupby(cluster_ids).min()
         end = self._ranges.end.groupby(cluster_ids).max()
-        return RangeSeries(start, end)
+        return RangeSeries(start, end, set_index=idx)
 
     # TODO: test
     # TODO: what if self-overlapping?
@@ -771,9 +774,9 @@ def overlapping_clusters_grouped(
         if isinstance(groups, dict):
             group_indexes = groups
         else:
-            group_indexes = ranges.start.groupby(groups).indices.items()
+            group_indexes = ranges.start.groupby(groups).indices
         next_cluster_idx = 0
-        for key, grp_idx in group_indexes:
+        for key, grp_idx in group_indexes.items():
             if len(grp_idx) == 0:
                 continue
             start = ranges.start.iloc[grp_idx].to_numpy()
