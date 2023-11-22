@@ -796,6 +796,8 @@ def overlapping_clusters_grouped(
 
 
 def _get_group_indices(ranges, groups):
+    if groups is None:
+        groups = []
     if isinstance(groups, Series) or isinstance(groups, str):
         groups = [groups]
     if isinstance(groups[0], Series):
@@ -811,19 +813,14 @@ def overlapping_pairs_grouped(
         groups_a: Union[Series, List[Series], str, List[str], None] = None,
         groups_b: Union[Series, List[Series], str, List[str], None] = None
 ) -> np.ndarray:
-    if groups_a is None:
-        groups_a = []
-    if groups_b is None:
-        groups_b = []
+    _indices_a = _get_group_indices(ranges_a, groups_a)
+    _indices_b = _get_group_indices(ranges_b, groups_b)
     if len(groups_a) != len(groups_b):
         raise ValueError(
             f"Must provide the same number of group levels (current: {len(groups_a)} vs {len(groups_b)})."
         )
     if len(groups_a) > 0:  # and len(groups_b) > 0
-        mergred_indexes = _match_dict_items(
-            _get_group_indices(ranges_a, groups_a),
-            _get_group_indices(ranges_b, groups_b)
-        )
+        mergred_indexes = _match_dict_items(_indices_a, _indices_b)
         matched_a = []
         matched_b = []
         for group, idx_a, idx_b in mergred_indexes:
