@@ -800,11 +800,13 @@ def _get_group_indices(ranges, groups):
         groups = []
     if isinstance(groups, Series) or isinstance(groups, str):
         groups = [groups]
+    if len(groups) == 0:
+        return None, 0
     if isinstance(groups[0], Series):
         to_group = pd.concat(groups, axis=1)
     else:  # str -> treat as index
-        to_group = ranges.to_frame().reset_index().loc[:, groups]
-    return dict(to_group.groupby(groups).indices)
+        to_group = ranges.to_frame().reset_index().loc[:, groups]    
+    return dict(to_group.groupby(groups).indices), len(to_group.columns)
 
 
 def overlapping_pairs_grouped(
@@ -813,13 +815,13 @@ def overlapping_pairs_grouped(
         groups_a: Union[Series, List[Series], str, List[str], None] = None,
         groups_b: Union[Series, List[Series], str, List[str], None] = None
 ) -> np.ndarray:
-    _indices_a = _get_group_indices(ranges_a, groups_a)
-    _indices_b = _get_group_indices(ranges_b, groups_b)
-    if len(groups_a) != len(groups_b):
+    _indices_a, _n_grouping_cols_a = _get_group_indices(ranges_a, groups_a)
+    _indices_b, _n_grouping_cols_b = _get_group_indices(ranges_b, groups_b)
+    if _n_grouping_cols_a != _n_grouping_cols_b:
         raise ValueError(
-            f"Must provide the same number of group levels (current: {len(groups_a)} vs {len(groups_b)})."
+            f"Must provide the same number of group levels (current: {_n_grouping_cols_a} vs {_n_grouping_cols_b})."
         )
-    if len(groups_a) > 0:  # and len(groups_b) > 0
+    if _n_grouping_cols_a > 0:  # and len(groups_b) > 0
         mergred_indexes = _match_dict_items(_indices_a, _indices_b)
         matched_a = []
         matched_b = []
@@ -848,6 +850,14 @@ def overlapping_pairs_grouped(
         matched_b = group_pairs[:, 1]
     sorting_idx = np.lexsort((matched_b, matched_a))  # Notice the order
     return np.column_stack([matched_a[sorting_idx], matched_b[sorting_idx]])
+
+
+def join_by_indices(df1, df2, idx):
+    res_df = pd.concat([
+        df1.iloc[idx[:,0],:].reset_index(drop=True),
+        df2.iloc[idx[:,1],:].reset_index(drop=True)
+    ], axis=1)
+    return res_df
 
 
 # TODO: efficiency
