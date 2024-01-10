@@ -630,13 +630,14 @@ class RangeSeriesGroupBy(object):
     def __init__(
             self,
             ranges: RangeSeries,
-            groups: Union[Iterable[Union[Series, np.ndarray, str]], Series, str]
+            groups: Union[Iterable[Union[Series, np.ndarray, str]], Series, str],
+            observed: bool = True
     ):
         if isinstance(groups, Series) or isinstance(groups, str):
             groups = [groups]
         self._ranges = ranges
         self._groups = groups
-        self._indices = ranges.start.groupby(groups).indices
+        self._indices = ranges.start.groupby(groups, observed=observed).indices
         names = []
         for i, g in enumerate(groups):
             if isinstance(g, str):
