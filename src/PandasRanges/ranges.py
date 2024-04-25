@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import re
 from collections import namedtuple
-from typing import Optional, Union, Tuple, Generator, Iterable, Hashable, List, Dict
+from typing import Optional, Union, Tuple, Generator, Iterable, Hashable, List, Dict, Any
 
 import numpy as np
 import pandas as pd
@@ -1036,8 +1036,7 @@ def assert_ranges_equal(actual: RangeSeries, expected: RangeSeries, check_names=
 
 _MATCH_DICT_ITEMS_HOW_SET = ('inner', 'outer', 'left', 'right')
 
-
-def _match_dict_items(d1: Dict, d2: Dict, how='inner') -> Tuple:
+def _match_dict_items(d1: Dict, d2: Dict, how='inner') -> Generator[Tuple[Any, Any, Any], None, None]:
     # Note: 'None' not supported as dict value because of non-inner join behavior
     if how not in _MATCH_DICT_ITEMS_HOW_SET:
         raise ValueError(f'"how" must be one of: {",".join(_MATCH_DICT_ITEMS_HOW_SET)}')
