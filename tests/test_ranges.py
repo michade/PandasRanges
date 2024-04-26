@@ -268,7 +268,7 @@ def test__overlapping_pairs_grouped__indexes(overlapping_pairs_grouped_cases):
     iv1 = RangeSeries(df1)
     iv2 = RangeSeries(df2)
     expected_indices = np.array(expected_indices, dtype=int).reshape((len(expected_indices), 2))
-    result_indices = overlapping_pairs_grouped(iv1, iv2, groups1, groups2)
+    result_indices = overlapping_pairs_grouped(iv1, iv2, groups1, groups2)  # TODO : test observed parameter
     assert_array_equal(result_indices, expected_indices)
 
 
@@ -281,7 +281,7 @@ def test__overlapping_pairs_grouped__series(overlapping_pairs_grouped_cases):
     expected_indices = np.array(expected_indices, dtype=int).reshape((len(expected_indices), 2))
     group_series_1 = [df1[grp] for grp in groups1]
     group_series_2 = [df2[grp] for grp in groups2]
-    result_indices = overlapping_pairs_grouped(iv1, iv2, group_series_1, group_series_2)
+    result_indices = overlapping_pairs_grouped(iv1, iv2, group_series_1, group_series_2)  # TODO : test observed parameter
     assert_array_equal(result_indices, expected_indices)
 
 
@@ -552,7 +552,7 @@ def test__merge_sorted_ranges__indexes(merge_sorted_ranges_cases):
     iv1 = RangeSeries(df1)
     iv2 = RangeSeries(df2)
     expected = RangeSeries(expected_df)
-    result = merge_sorted_ranges(iv1, iv2, groups1, groups2)
+    result = merge_sorted_ranges(iv1, iv2, groups1, groups2)  # TODO : test observed parameter
     assert_ranges_equal(result, expected)
 
 
@@ -773,7 +773,7 @@ def test__range_set_union__indexes(range_set_union_cases):
     iv1 = RangeSeries(df1)
     iv2 = RangeSeries(df2)
     expected = RangeSeries(expected_df)
-    result = range_set_union(iv1, iv2, groups1, groups2)
+    result = range_set_union(iv1, iv2, groups1, groups2)  # TODO : test observed parameter
     assert_ranges_equal(result, expected)
 
 

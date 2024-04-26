@@ -596,9 +596,9 @@ class RangeSeries(object):
     #######################################################################################
 
     # TODO: test
-    def groupby(self, groups: Union[Iterable[Union[Series, np.ndarray, str]], Series, str])\
+    def groupby(self, groups: Union[Iterable[Union[Series, np.ndarray, str]], Series, str], observed: bool = False)\
             -> RangeSeriesGroupBy:
-        return RangeSeriesGroupBy(self, groups)
+        return RangeSeriesGroupBy(self, groups, observed)
 
     # TODO: test
     def assign_to(self, df: DataFrame):
@@ -631,7 +631,7 @@ class RangeSeriesGroupBy(object):
             self,
             ranges: RangeSeries,
             groups: Union[Iterable[Union[Series, np.ndarray, str]], Series, str],
-            observed: bool = True
+            observed: bool = False
     ):
         if isinstance(groups, Series) or isinstance(groups, str):
             groups = [groups]
@@ -775,7 +775,7 @@ def overlapping_clusters_grouped(
         if isinstance(groups, dict):
             group_indexes = groups
         else:
-            group_indexes = ranges.start.groupby(groups).indices
+            group_indexes = ranges.start.groupby(groups, observed=True).indices
         next_cluster_idx = 0
         for key, grp_idx in group_indexes.items():
             if len(grp_idx) == 0:
@@ -796,7 +796,7 @@ def overlapping_clusters_grouped(
     return cluster_idxs
 
 
-def _get_group_indices(ranges, groups):
+def _get_group_indices(ranges, groups, observed):
     if groups is None:
         groups = []
     if isinstance(groups, Series) or isinstance(groups, str):
@@ -807,7 +807,7 @@ def _get_group_indices(ranges, groups):
         to_group = pd.concat(groups, axis=1)
     else:  # str -> treat as index
         to_group = ranges.to_frame().reset_index().loc[:, groups]    
-    return dict(to_group.groupby(groups).indices), len(to_group.columns)
+    return dict(to_group.groupby(groups, observed=observed).indices), len(to_group.columns)
 
 
 def overlapping_pairs_grouped(
@@ -816,8 +816,8 @@ def overlapping_pairs_grouped(
         groups_a: Union[Series, List[Series], str, List[str], None] = None,
         groups_b: Union[Series, List[Series], str, List[str], None] = None
 ) -> np.ndarray:
-    _indices_a, _n_grouping_cols_a = _get_group_indices(ranges_a, groups_a)
-    _indices_b, _n_grouping_cols_b = _get_group_indices(ranges_b, groups_b)
+    _indices_a, _n_grouping_cols_a = _get_group_indices(ranges_a, groups_a, observed=True)
+    _indices_b, _n_grouping_cols_b = _get_group_indices(ranges_b, groups_b, observed=True)
     if _n_grouping_cols_a != _n_grouping_cols_b:
         raise ValueError(
             f"Must provide the same number of group levels (current: {_n_grouping_cols_a} vs {_n_grouping_cols_b})."
@@ -899,8 +899,8 @@ def range_set_intersection(
 ) -> RangeSeries:
     if groups_a is not None and groups_b is None:
         groups_b = groups_a
-    prepared_a = ranges_a.groupby(groups_a).sort().union_self()
-    prepared_b = ranges_b.groupby(groups_b).sort().union_self()
+    prepared_a = ranges_a.groupby(groups_a, observed=True).sort().union_self()
+    prepared_b = ranges_b.groupby(groups_b, observed=True).sort().union_self()
     pair_ids = overlapping_pairs_grouped(prepared_a, prepared_b, groups_a, groups_b)
     starts = np.maximum(
         ranges_a.start.iloc[pair_ids[:, 0]],
@@ -970,8 +970,8 @@ def merge_sorted_ranges(
     concatenated_index = index_a.append(index_b)
     if len(groups_a) > 0:  # and len(groups_b) > 0
         mergred_indexes = list(_match_dict_items(
-            _get_group_indices(ranges_a, groups_a),
-            _get_group_indices(ranges_b, groups_b)
+            _get_group_indices(ranges_a, groups_a, observed=True),
+            _get_group_indices(ranges_b, groups_b, observed=True)
         ))  # TODO: list
         group_start = 0
         b_offset = len(ranges_a)
