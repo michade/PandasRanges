@@ -4,10 +4,12 @@ from typing import Union, Tuple
 import numpy as np
 from numpy import ndarray
 from pandas import Series
+from numba import jit
 
 from .utils import MinQueue
 
 
+@jit(nopython=True)
 def overlapping_pairs(start_a: ndarray, end_a: ndarray, start_b: ndarray, end_b: ndarray, sort_result: bool = True) \
         -> ndarray:
     n_streams = 2  # "stream" = "list of ranges"
@@ -15,7 +17,7 @@ def overlapping_pairs(start_a: ndarray, end_a: ndarray, start_b: ndarray, end_b:
     starts = [start_a, start_b]
     ends = [end_a, end_b]
     overlap_indices = []
-    open_ranges = [MinQueue() for _ in range(n_streams)]  # "open" = "intersecting the current position"
+    open_ranges = [MinQueue(None) for _ in range(n_streams)]  # "open" = "intersecting the current position"
     lengths = np.array([len(s) for s in starts], dtype=int)
     if min(lengths) == 0:  # empty intersection
         return np.array([], dtype=int).reshape(0, 2)
@@ -67,18 +69,19 @@ def overlapping_pairs(start_a: ndarray, end_a: ndarray, start_b: ndarray, end_b:
     return np.array(overlap_indices, dtype=int).reshape(len(overlap_indices), 2)
 
 
+@jit(nopython=True)
 def overlapping_clusters(starts: ndarray, ends: ndarray) \
         -> ndarray:
     sentinel = sys.maxsize
     length = len(starts)
     assert len(ends) == length
     if length == 0:  # empty set
-        return np.empty(0, dtype=int)
-    open_ranges = MinQueue()  # "open" = "intersecting the current position"
+        return np.empty(0, dtype='int')    
+    open_ranges = MinQueue(None)  # "open" = "intersecting the current position"
     idx = 0
     i_cluster = 0
     next_start = starts[0]
-    cluster_ids = np.empty(length, dtype=int)
+    cluster_ids = np.empty(length, dtype='int')
     while idx < length or len(open_ranges) > 0:
         if next_start < open_ranges.min(default=sentinel):  # lack of "=" is important here
             # next point is the start of a region -> we open that region
@@ -104,6 +107,7 @@ def overlapping_clusters(starts: ndarray, ends: ndarray) \
     return cluster_ids
 
 
+@jit(nopython=True)
 def mergesort_ranges_indices(starts_a: ndarray, ends_a: ndarray, starts_b: ndarray, ends_b: ndarray) \
         -> Tuple[ndarray, ndarray]:
     sentinel = sys.maxsize
@@ -141,6 +145,7 @@ def mergesort_ranges_indices(starts_a: ndarray, ends_a: ndarray, starts_b: ndarr
 
 
 # TODO: test
+@jit(nopython=True)
 def target_indices_to_permutation(indices_a: ndarray, indices_b: ndarray) -> ndarray:
     n = len(indices_a) + len(indices_b)
     perm = np.empty(n, dtype=int)
@@ -175,6 +180,7 @@ def check_if_sorted(
     return i
 
 
+@jit(nopython=True)
 def get_first_unsorted_index_in_points(points: ndarray, ascending=True):
     i = 1
     i_end = len(points)
@@ -187,6 +193,7 @@ def get_first_unsorted_index_in_points(points: ndarray, ascending=True):
     return -1
 
 
+@jit(nopython=True)
 def get_first_unsorted_index_in_ranges(start: ndarray, end: ndarray, ascending=True):
     i = 1
     i_end = len(start)

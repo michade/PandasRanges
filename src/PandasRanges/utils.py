@@ -1,42 +1,39 @@
 from __future__ import annotations
 
 import heapq
-from typing import Tuple, Union, Hashable, List
+from typing import Tuple, Union, Hashable, List, Optional
 
 import numpy as np
 import pandas as pd
+from numba.experimental import jitclass
+from numba import typed, types, jit, int64
 
 
-# TODO: what's this?
-# import matplotlib
-# from matplotlib import pyplot as plt
-# from numba import int32
-# from numba.experimental import jitclass
+_minqueue_kv_type = types.UniTuple(types.int64, 2)
 
-
+@jitclass([
+    ('_arr', types.ListType(_minqueue_kv_type))
+])
 class MinQueue(object):
-    def __init__(self, data=None):
-        if data is not None:
-            arr = [(v, k) for k, v in data]
-            heapq.heapify(arr)
+    def __init__(self, data: Optional[List[Tuple[int, int]]] = None):     # , data: Optional[List[Tuple[int, int]]] = None
+        if data is None:
+            self._arr = typed.List.empty_list(_minqueue_kv_type)
         else:
-            arr = []
-        self._arr = arr
+            self._arr = typed.List([(int64(v), int64(k)) for k, v in data])    
+            heapq.heapify(self._arr)
 
     def __len__(self):
-        return self._arr.__len__()
-
-    def __iter__(self):
-        return iter((k, v) for v, k in self._arr)
+        return len(self._arr)
 
     def __str__(self):
         return f'MinQueue[{self._arr}]'
-
-    def __repr__(self):
-        return str(self)
+    
+    @property 
+    def data(self):
+        return self._arr
 
     def push(self, key: int, value: int):
-        heapq.heappush(self._arr, (value, key))
+        heapq.heappush(self._arr, (int64(value), int64(key)))
 
     def first(self) -> Tuple[int, int]:
         value, key = self._arr[0]
@@ -101,41 +98,6 @@ def pandas_merge_threeway(
         how='inner' if inner else 'left'
     )
     return df
-
-
-# def categorical_cmap(nc, nsc, cmap="tab10", continuous=False):
-#     if nc > plt.get_cmap(cmap).N:
-#         raise ValueError("Too many categories for colormap.")
-#     if continuous:
-#         ccolors = plt.get_cmap(cmap)(np.linspace(0,1,nc))
-#     else:
-#         ccolors = plt.get_cmap(cmap)(np.arange(nc, dtype=int))
-#     cols = np.zeros((nc*nsc, 3))
-#     for i, c in enumerate(ccolors):
-#         chsv = matplotlib.colors.rgb_to_hsv(c[:3])
-#         arhsv = np.tile(chsv,nsc).reshape(nsc,3)
-#         arhsv[:,1] = np.linspace(chsv[1],0.25,nsc)
-#         arhsv[:,2] = np.linspace(chsv[2],1,nsc)
-#         rgb = matplotlib.colors.hsv_to_rgb(arhsv)
-#         cols[i*nsc:(i+1)*nsc,:] = rgb
-#     cmap = matplotlib.colors.ListedColormap(cols)
-#     return cmap
-#
-#
-# def test_categorical_cmap():
-#     c1 = categorical_cmap(4, 3, cmap="tab10")
-#     plt.scatter(np.arange(4 * 3), np.ones(4 * 3) + 1, c=np.arange(4 * 3), s=180, cmap=c1)
-#
-#     c2 = categorical_cmap(2, 5, cmap="tab10")
-#     plt.scatter(np.arange(10), np.ones(10), c=np.arange(10), s=180, cmap=c2)
-#
-#     c3 = categorical_cmap(2, 19, cmap="tab10")
-#     plt.scatter(np.arange(2 * 19), np.ones(2 * 19) - 1, c=np.arange(2 * 19), s=180, cmap=c3)
-#
-#     plt.margins(y=0.3)
-#     plt.xticks([])
-#     plt.yticks([0, 1, 2], ["(5, 4)", "(2, 5)", "(4, 3)"])
-#     plt.show()
 
 
 # @jitclass([
@@ -281,3 +243,23 @@ class DisjointSetPlus(object):
         for i in range(len(sizes)):
             sizes[i] = self._size[self.find(i)]
         return sizes
+
+
+def main():
+    # q = MinQueue([(8, 1), (0, 9)])
+    q = MinQueue()
+    q.push(3, 0)
+    q.push(2, 1)
+    q.push(1, 2)
+    q.push(4, 3)
+    print(q.pop())
+    print('*****')
+    print(q.data)
+    q.push(0, 4)
+    q.push(7, 5)
+    while len(q) > 0:
+        print(q.pop())
+
+
+if __name__ == '__main__':
+    main()
