@@ -782,7 +782,9 @@ def overlapping_clusters_grouped(
                 continue
             start = ranges.start.iloc[grp_idx].to_numpy()
             end = ranges.end.iloc[grp_idx].to_numpy()
-            overlaps.check_if_sorted(start, end)
+            first_unsorted = overlaps.check_if_sorted(start, end, exc_type=None)
+            if first_unsorted != -1:
+                raise ValueError(f"Group {key} is not sorted at index {first_unsorted}.")
             grp_cluster_idxs = overlaps.overlapping_clusters(start, end)
             n_found = grp_cluster_idxs.max() + 1
             cluster_idxs[grp_idx] = grp_cluster_idxs + next_cluster_idx
