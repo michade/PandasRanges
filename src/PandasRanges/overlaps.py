@@ -69,19 +69,28 @@ def overlapping_pairs(start_a: ndarray, end_a: ndarray, start_b: ndarray, end_b:
     return np.array(overlap_indices, dtype=int).reshape(len(overlap_indices), 2)
 
 
-@jit(nopython=True)
-def overlapping_clusters(starts: ndarray, ends: ndarray) \
+def overlapping_clusters(starts: ndarray, ends: ndarray, ascending: bool = True, dtype: str='int') \
         -> ndarray:
-    sentinel = sys.maxsize
     length = len(starts)
     assert len(ends) == length
     if length == 0:  # empty set
-        return np.empty(0, dtype='int')    
+        return np.empty(0, dtype=dtype)
+    cluster_ids = np.empty(length, dtype=dtype)
+    if not ascending:  # TODO: better implementation, without copying
+        starts = starts[::-1]
+        ends = ends[::-1]
+    _overlapping_clusters_impl(starts, ends, cluster_ids, ascending)
+    return cluster_ids
+
+
+@jit(nopython=True)
+def _overlapping_clusters_impl(starts: ndarray, ends: ndarray, cluster_ids: np.ndarray, ascending: bool):
+    sentinel = sys.maxsize
+    length = len(starts)
     open_ranges = MinQueue(None)  # "open" = "intersecting the current position"
     idx = 0
     i_cluster = 0
     next_start = starts[0]
-    cluster_ids = np.empty(length, dtype='int')
     while idx < length or len(open_ranges) > 0:
         if next_start < open_ranges.min(default=sentinel):  # lack of "=" is important here
             # next point is the start of a region -> we open that region
@@ -103,8 +112,6 @@ def overlapping_clusters(starts: ndarray, ends: ndarray) \
             open_ranges.pop()
             if len(open_ranges) == 0:
                 i_cluster += 1
-
-    return cluster_ids
 
 
 @jit(nopython=True)

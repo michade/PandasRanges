@@ -764,7 +764,8 @@ class RangeSeriesGroupBy(object):
 
 def overlapping_clusters_grouped(
         ranges: RangeSeries,
-        groups: Union[Series, List[Series], str, List[str], Dict[Hashable, np.ndarray], None] = None
+        groups: Union[Series, List[Series], str, List[str], Dict[Hashable, np.ndarray], None] = None,
+        ascending: bool = True
 ) -> np.ndarray:
     if groups is None:
         groups = []
@@ -781,19 +782,23 @@ def overlapping_clusters_grouped(
             if len(grp_idx) == 0:
                 continue
             start = ranges.start.iloc[grp_idx].to_numpy()
-            end = ranges.end.iloc[grp_idx].to_numpy()
-            first_unsorted = overlaps.check_if_sorted(start, end, exc_type=None)
+            end = ranges.end.iloc[grp_idx].to_numpy()            
+            first_unsorted = overlaps.check_if_sorted(start, end, exc_type=None, ascending=ascending)
             if first_unsorted != -1:
+                print(start[:10])  # TODO: temp
+                print(end[:10])  # TODO: temp
                 raise ValueError(f"Group {key} is not sorted at index {first_unsorted}.")
-            grp_cluster_idxs = overlaps.overlapping_clusters(start, end)
+            grp_cluster_idxs = overlaps.overlapping_clusters(start, end, ascending=ascending)
             n_found = grp_cluster_idxs.max() + 1
             cluster_idxs[grp_idx] = grp_cluster_idxs + next_cluster_idx
             next_cluster_idx += n_found
     else:
         start = ranges.start.to_numpy()
         end = ranges.end.to_numpy()
-        overlaps.check_if_sorted(start, end)
-        cluster_idxs = overlaps.overlapping_clusters(start, end)
+        first_unsorted = overlaps.check_if_sorted(start, end, exc_type=None, ascending=ascending)        
+        if first_unsorted != -1:
+            raise ValueError(f"Group {key} is not sorted at index {first_unsorted}.")
+        cluster_idxs = overlaps.overlapping_clusters(start, end, ascending=ascending)
 
     return cluster_idxs
 
