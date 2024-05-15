@@ -76,10 +76,12 @@ def overlapping_clusters(starts: ndarray, ends: ndarray, ascending: bool = True,
     if length == 0:  # empty set
         return np.empty(0, dtype=dtype)
     cluster_ids = np.empty(length, dtype=dtype)
-    if not ascending:  # TODO: better implementation, without copying
+    if not ascending:  # TODO: better implementation, without copying/views
         starts = starts[::-1]
         ends = ends[::-1]
     _overlapping_clusters_impl(starts, ends, cluster_ids, ascending)
+    if not ascending:
+        cluster_ids[:] = cluster_ids[::-1]
     return cluster_ids
 
 
