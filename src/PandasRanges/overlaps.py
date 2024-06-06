@@ -4,7 +4,7 @@ from typing import Union, Tuple
 import numpy as np
 from numpy import ndarray
 from pandas import Series
-from numba import jit
+from numba import jit, typed, types
 
 from .utils import MinQueue
 
@@ -18,12 +18,12 @@ def overlapping_pairs(start_a: ndarray, end_a: ndarray, start_b: ndarray, end_b:
     ends = [end_a, end_b]
     overlap_indices = []
     open_ranges = [MinQueue(None) for _ in range(n_streams)]  # "open" = "intersecting the current position"
-    lengths = np.array([len(s) for s in starts], dtype=int)
+    lengths = np.array([len(s) for s in starts], dtype='int')
     if min(lengths) == 0:  # empty intersection
-        return np.array([], dtype=int).reshape(0, 2)
-    idxs = np.array([0 for _ in range(n_streams)], dtype=int)
-    next_starts = np.array([s[0] for s in starts], dtype=int)
-    min_open_ends = np.array([sentinel for _ in range(n_streams)], dtype=int)  # coordinates are > 0
+        return np.empty((0, 2), dtype='int')
+    idxs = np.array([0 for _ in range(n_streams)], dtype='int')
+    next_starts = np.array([s[0] for s in starts], dtype='int')
+    min_open_ends = np.array([sentinel for _ in range(n_streams)], dtype='int')  # coordinates are > 0
     n_open = n_streams  # n_open = #streams with data + #min_open_ends queues with data
     while n_open > 0:
         if next_starts.min() < min_open_ends.min():  # "=" is important here: starts before ends
@@ -56,17 +56,21 @@ def overlapping_pairs(start_a: ndarray, end_a: ndarray, start_b: ndarray, end_b:
             i, end = open_ranges[stream_idx].pop()
             other_stream_idx = (stream_idx + 1) % 2
             # add overlap indices
-            for j, _ in open_ranges[other_stream_idx]:
+            other_open = open_ranges[other_stream_idx]
+            for k in range(len(other_open)):
+                j, _ = other_open.get(k)
                 res = (i, j) if stream_idx == 0 else (j, i)
                 overlap_indices.append(res)
             if len(open_ranges[stream_idx]) == 0:
                 n_open -= 1
-            min_open_ends[stream_idx] = open_ranges[stream_idx].min(default=sentinel)
+                min_open_ends[stream_idx] = sentinel
+            else:
+                min_open_ends[stream_idx] = open_ranges[stream_idx].min()                
 
     if sort_result:
         overlap_indices.sort()
 
-    return np.array(overlap_indices, dtype=int).reshape(len(overlap_indices), 2)
+    return np.array(overlap_indices, dtype='int').reshape(len(overlap_indices), 2)
 
 
 def overlapping_clusters(starts: ndarray, ends: ndarray, ascending: bool = True, dtype: str='int') \
@@ -128,8 +132,8 @@ def mergesort_ranges_indices(starts_a: ndarray, ends_a: ndarray, starts_b: ndarr
     idx_b = 0
     idx_res = 0
     total_length = length_a + length_b
-    indices_a = np.empty(length_a, dtype=int)
-    indices_b = np.empty(length_b, dtype=int)
+    indices_a = np.empty(length_a, dtype='int')
+    indices_b = np.empty(length_b, dtype='int')
     while idx_res < total_length:
         s_a = starts_a[idx_a] if idx_a < length_a else sentinel
         s_b = starts_b[idx_b] if idx_b < length_b else sentinel
@@ -157,7 +161,7 @@ def mergesort_ranges_indices(starts_a: ndarray, ends_a: ndarray, starts_b: ndarr
 @jit(nopython=True)
 def target_indices_to_permutation(indices_a: ndarray, indices_b: ndarray) -> ndarray:
     n = len(indices_a) + len(indices_b)
-    perm = np.empty(n, dtype=int)
+    perm = np.empty(n, dtype='int')
     perm[indices_a] = np.arange(len(indices_a))
     perm[indices_b] = np.arange(len(indices_a), n)
     return perm

@@ -47,6 +47,10 @@ class MinQueue(object):
     def pop(self) -> Tuple[int, int]:
         value, key = heapq.heappop(self._arr)
         return key, value
+    
+    def get(self, index: int):
+        value, key = self._arr[index]
+        return key, value
 
 
 def pandas_merge_threeway(
