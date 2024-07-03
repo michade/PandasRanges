@@ -1,12 +1,65 @@
 import sys
-from typing import Union, Tuple
+import heapq
+from typing import Tuple, Union, List, Optional
 
 import numpy as np
+from numba import jit
 from numpy import ndarray
 from pandas import Series
-from numba import jit, typed, types
 
-from .utils import MinQueue
+from numba import typed, types, int64
+
+
+_minqueue_kv_type = types.UniTuple(types.int64, 2)
+
+
+@jit(nopython=True)
+def minqueue_new():  #TODO: can this be megred with minqueue_init?
+    return typed.List.empty_list(_minqueue_kv_type)
+
+
+def minqueue_init(data: List[Tuple[int, int]]):
+    if len(data) == 0:
+        return typed.List.empty_list(_minqueue_kv_type)
+    else:
+        arr = [(int64(v), int64(k)) for k, v in data]
+        heapq.heapify(arr)
+        return typed.List(arr)
+
+
+@jit(nopython=True)
+def minqueue_len(arr):
+    return len(arr)
+
+
+@jit(nopython=True)
+def minqueue_push(arr, key: int, value: int):
+    heapq.heappush(arr, (int64(value), int64(key)))
+
+
+@jit(nopython=True)
+def minqueue_first(arr) -> Tuple[int, int]:
+    value, key = arr[0]
+    return key, value
+
+
+@jit(nopython=True)
+def minqueue_min(arr, default=None):
+    if default is not None and len(arr) == 0:
+        return default
+    return arr[0][0]
+
+
+@jit(nopython=True)
+def minqueue_pop(arr) -> Tuple[int, int]:
+    value, key = heapq.heappop(arr)
+    return key, value
+
+
+@jit(nopython=True)
+def minqueue_get(arr, index: int):
+    value, key = arr[index]
+    return key, value
 
 
 @jit(nopython=True)
@@ -17,55 +70,55 @@ def overlapping_pairs(start_a: ndarray, end_a: ndarray, start_b: ndarray, end_b:
     starts = [start_a, start_b]
     ends = [end_a, end_b]
     overlap_indices = []
-    open_ranges = [MinQueue(None) for _ in range(n_streams)]  # "open" = "intersecting the current position"
+    open_ranges = [minqueue_new() for _ in range(n_streams)]  # "open" = "intersecting the current position"
     lengths = np.array([len(s) for s in starts], dtype='int')
     if min(lengths) == 0:  # empty intersection
         return np.empty((0, 2), dtype='int')
-    idxs = np.array([0 for _ in range(n_streams)], dtype='int')
+    stream_pos = np.array([0 for _ in range(n_streams)], dtype='int')
     next_starts = np.array([s[0] for s in starts], dtype='int')
     min_open_ends = np.array([sentinel for _ in range(n_streams)], dtype='int')  # coordinates are > 0
     n_open = n_streams  # n_open = #streams with data + #min_open_ends queues with data
     while n_open > 0:
         if next_starts.min() < min_open_ends.min():  # "=" is important here: starts before ends
             # next point is the start of a region -> we open that region
-            stream_idx = next_starts.argmin()
-            i = idxs[stream_idx]  # index of current region in stream
-            end = ends[stream_idx][i]
+            stream_no = next_starts.argmin()
+            i = stream_pos[stream_no]  # index of current region in stream
+            end = ends[stream_no][i]
             # end == start for an empty region
-            if end < next_starts[stream_idx]:
-                raise ValueError(f"Malformed region in argument {stream_idx + 1}: f{next_starts[stream_idx]}-{end}")
-            if len(open_ranges[stream_idx]) == 0:
+            if end < next_starts[stream_no]:
+                raise ValueError(f"Malformed region in argument {stream_no + 1}: f{next_starts[stream_no]}-{end}")
+            if len(open_ranges[stream_no]) == 0:
                 n_open += 1
             # open the region
-            open_ranges[stream_idx].push(i, end)
-            min_open_ends[stream_idx] = open_ranges[stream_idx].min()
+            open_ranges[stream_no].push(i, end)
+            min_open_ends[stream_no] = open_ranges[stream_no].min()
             # advance in the stream
             i += 1
-            if i < lengths[stream_idx]:
-                idxs[stream_idx] = i
-                start = starts[stream_idx][i]
-                if start < next_starts[stream_idx]:
-                    raise ValueError(f"Unsorted data in argument {stream_idx + 1}: {start} < {next_starts[stream_idx]}")
-                next_starts[stream_idx] = start
+            if i < lengths[stream_no]:
+                stream_pos[stream_no] = i
+                start = starts[stream_no][i]
+                if start < next_starts[stream_no]:
+                    raise ValueError(f"Unsorted data in argument {stream_no + 1}: {start} < {next_starts[stream_no]}")
+                next_starts[stream_no] = start
             else:  # end of input -> close stream
-                next_starts[stream_idx] = sentinel
+                next_starts[stream_no] = sentinel
                 n_open -= 1
         else:  # next_starts.min() >= min_open_ends.min()
             # next point is the end of a region -> we close that region
-            stream_idx = min_open_ends.argmin()
-            i, end = open_ranges[stream_idx].pop()
-            other_stream_idx = (stream_idx + 1) % 2
+            stream_no = min_open_ends.argmin()
+            i, end = open_ranges[stream_no].pop()
+            other_stream_idx = (stream_no + 1) % 2
             # add overlap indices
             other_open = open_ranges[other_stream_idx]
             for k in range(len(other_open)):
                 j, _ = other_open.get(k)
-                res = (i, j) if stream_idx == 0 else (j, i)
+                res = (i, j) if stream_no == 0 else (j, i)
                 overlap_indices.append(res)
-            if len(open_ranges[stream_idx]) == 0:
+            if len(open_ranges[stream_no]) == 0:
                 n_open -= 1
-                min_open_ends[stream_idx] = sentinel
+                min_open_ends[stream_no] = sentinel
             else:
-                min_open_ends[stream_idx] = open_ranges[stream_idx].min()                
+                min_open_ends[stream_no] = open_ranges[stream_no].min()
 
     if sort_result:
         overlap_indices.sort()

@@ -9,7 +9,7 @@ import pytest
 
 
 @dataclass
-class Vectorizer:
+class Vectorizer(object):
     size: int
     cls: Optional[Callable] = None
     index: Optional[pd.Index] = None
@@ -18,7 +18,7 @@ class Vectorizer:
 
     def __call__(self, *data, cls=None, **kwargs):
         if len(data) == 0:
-            raise ValueError("Sppecify at least one argument to vectorize")
+            raise ValueError("Specify at least one argument to vectorize")
         if len(data) == 1:
             data = data[0]
         if cls is None:
@@ -91,7 +91,7 @@ class TestCasesCsv(TestCasesFile):
         cases_df = pd.read_csv(path)
         cls.columns = list(cases_df.columns)
         if 'comment' in cases_df.columns:
-            comments = [f'[L{idx + 2}:"{comment}"]' for idx, comment in cases_df.comment.iteritems()]
+            comments = [f'[L{idx + 2}:"{comment}"]' for idx, comment in cases_df.comment.items()]
             cases_df = cases_df.drop(columns=['comment'])
         else:
             comments = None

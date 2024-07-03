@@ -361,15 +361,32 @@ class RangeSeries(object):
             new_end = np.minimum(new_end, right)
         return RangeSeries(new_start, new_end, set_names=self.names)
 
-    def expand(self, left: Union[Series, int], right: Union[Series, int, None] = None) -> RangeSeries:
-        new_start = self._start
-        new_end = self._end
+    def expand(self, left: Union[Series, ndarray, int], right: Union[Series, ndarray, int, None] = None) -> RangeSeries:
         if right is None:
             right = left
-        # `start` moves first:
-        new_start = np.minimum(new_start - left, new_end)
-        # `end` moves second:
-        new_end = np.maximum(new_end + right, new_start)
+        if (isinstance(left, int) and left < 0) or (left < 0).any():
+            raise ValueError(f'left must be >= 0')
+        if (isinstance(right, int) and right < 0) or (right < 0).any():
+            raise ValueError(f'right must be >= 0')
+        return RangeSeries(self._start - left, self._start + right, set_names=self.names)
+    
+    # TODO: test
+    def shrink(self, left: Union[Series, ndarray, int], right: Union[Series, ndarray, int, None] = None, *, towards: Union[str, int, ndarray, Series] = 'center') -> RangeSeries:
+        if right is None:
+            right = left
+        if isinstance(towards, str):
+            if towards == 'center':
+                to_pos = self.center
+            elif towards == 'start':
+                to_pos = self._start
+            elif towards == 'end':
+                to_pos = self._end
+            else:
+                raise ValueError(f'Invalid value for "to": {towards}')
+        else:  # wither number or vector
+            to_pos = towards
+        new_start = np.minimum(self._start + left, to_pos)
+        new_end = np.maximum(self._end - right, to_pos)
         return RangeSeries(new_start, new_end, set_names=self.names)
 
     def shift(self, d: Union[Series, int]) -> RangeSeries:
