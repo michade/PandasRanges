@@ -364,9 +364,15 @@ class RangeSeries(object):
     def expand(self, left: Union[Series, ndarray, int], right: Union[Series, ndarray, int, None] = None) -> RangeSeries:
         if right is None:
             right = left
-        if (isinstance(left, int) and left < 0) or (left < 0).any():
+        if isinstance(left, int):
+            if left < 0:
+                raise ValueError(f'left must be >= 0')
+        elif (left < 0).any():
             raise ValueError(f'left must be >= 0')
-        if (isinstance(right, int) and right < 0) or (right < 0).any():
+        if isinstance(right, int):
+            if right < 0:
+                raise ValueError(f'right must be >= 0')
+        elif (right < 0).any():
             raise ValueError(f'right must be >= 0')
         return RangeSeries(self._start - left, self._start + right, set_names=self.names)
     

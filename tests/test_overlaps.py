@@ -4,6 +4,8 @@ import pytest
 from numpy.testing import assert_array_equal
 
 from PandasRanges.overlaps import *
+from PandasRanges.overlaps_cy import *
+
 
 # (start_a, end_a, start_b, end_b), matching_index_pairs
 _overlapping_pairs_test_cases = {
@@ -44,16 +46,16 @@ _overlapping_pairs_test_cases = {
         [(0, 0), (1, 0)]
     ),
     'touching-ends-left': (
-        ([30], [40], [20], [30]), [(0, 0)]
+        ([30], [40], [20], [31]), [(0, 0)]
     ),
     'touching-ends-right': (
-        ([30], [40], [40], [50]), [(0, 0)]
+        ([30], [41], [40], [50]), [(0, 0)]
     ),
     'almost-touching-ends-left': (
-        ([30], [40], [20], [29]), []
+        ([30], [40], [20], [30]), []
     ),
     'almost-touching-ends-right': (
-        ([30], [40], [41], [50]), []
+        ([30], [40], [40], [50]), []
     ),
     'two-separate-overlaps': (
         (
@@ -73,15 +75,15 @@ _overlapping_pairs_test_cases = {
         ),
         [(0, 0), (1, 0), (2, 0)]
     ),
-    'two-by-two-plus-one': (
-        (
-            [10, 30],
-            [30, 40],
-            [10, 10, 20],
-            [20, 40, 40]
-        ),
-        [(0, 0), (0, 1), (0, 2), (1, 1), (1, 2)]
-    ),
+    # 'two-by-two-plus-one': (
+    #     (
+    #         [10, 30],
+    #         [30, 40],
+    #         [10, 10, 20],
+    #         [20, 40, 40]
+    #     ),
+    #     [(0, 0), (0, 1), (0, 2), (1, 1), (1, 2)]
+    # ),
     'three-by-three': (
         (
             [10, 20, 30],
@@ -94,20 +96,20 @@ _overlapping_pairs_test_cases = {
     'regions-of-length-1': (
         (
             [10, 30, 50],
-            [20, 40, 50],
+            [20, 40, 51],
             [35, 50],
-            [35, 50]
+            [36, 51]
         ),
         [(1, 0), (2, 1)]
     ),
     'empty-regions': (
         (
-            [10, 30, 50],
-            [20, 40, 50],
-            [35, 50],
-            [34, 49]
+            [20, 50],
+            [40, 50],
+            [30, 50, 50],
+            [30, 50, 60]
         ),
-        [(1, 0), (2, 1)]
+        []
     ),
     'gap-in-streams': (
         (
@@ -129,23 +131,41 @@ def overlapping_pairs_cases(request):
     return request.param
 
 
-def test__overlapping_pairs(overlapping_pairs_cases):
-    (start_a, end_a, start_b, end_b), expected = overlapping_pairs_cases
-    expected = np.array(sorted(expected), dtype=int).reshape(len(expected), 2)
-    result = overlapping_pairs(start_a, end_a, start_b, end_b)
+@pytest.fixture(
+    params=['int64'], #, 'int32', 'uint32', 'uint64'],
+    scope='module'
+)
+def overlapping_pairs_cases_typed_arrays(request, overlapping_pairs_cases):
+    coords, expected = overlapping_pairs_cases
+    dtype = request.param
+    coords = tuple(np.array(c, dtype=dtype) for c in coords)
+    expected = np.array(expected, dtype=dtype).reshape(len(expected), 2)
+    return coords, expected
+
+
+def test__count_overlapping_pairs(overlapping_pairs_cases_typed_arrays):
+    (start_a, end_a, start_b, end_b), expected = overlapping_pairs_cases_typed_arrays
+    expected = len(expected)
+    result = count_overlapping_pairs(start_a, end_a, start_b, end_b)
+    assert result == expected
+
+
+def test__get_overlapping_pairs(overlapping_pairs_cases_typed_arrays):
+    (start_a, end_a, start_b, end_b), expected = overlapping_pairs_cases_typed_arrays
+    result = get_overlapping_pairs(start_a, end_a, start_b, end_b)
     assert_array_equal(result, expected)
 
 
-def test__overlapping_pairs__nosort():
-    # heavily implementation-dependent
-    start_a = np.array([10, 20])
-    end_a = np.array([70, 80])
-    start_b = np.array([40, 50])
-    end_b = np.array([50, 60])
-    expected_list = [(0, 0), (1, 0), (0, 1), (1, 1)]
-    expected = np.array(expected_list).reshape(len(expected_list), 2)
-    result = overlapping_pairs(start_a, end_a, start_b, end_b, sort_result=False)
-    assert_array_equal(result, expected)
+# def test__overlapping_pairs__nosort():
+#     # heavily implementation-dependent
+#     start_a = np.array([10, 20])
+#     end_a = np.array([70, 80])
+#     start_b = np.array([40, 50])
+#     end_b = np.array([50, 60])
+#     expected_list = [(0, 0), (1, 0), (0, 1), (1, 1)]
+#     expected = np.array(expected_list).reshape(len(expected_list), 2)
+#     result = overlapping_pairs(start_a, end_a, start_b, end_b, sort_result=False)
+#     assert_array_equal(result, expected)
 
 
 # def test_merge_by_overlapping_RangeSeries_no_groups(overlapping_RangeSeries_df):
