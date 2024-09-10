@@ -135,16 +135,17 @@ class RangeSeries(object):
             names = new_names
 
         if len(start) == 0:
-            return Series(start, name=names[0], dtype=int), Series(end, name=names[1], dtype=int)
+            new_start = Series(start, name=names[0], index=index, dtype=int)
+            new_end = Series(end, name=names[1], index=index, dtype=int)            
+        else:
+            new_start = Series(start, name=names[0], copy=False)
+            if new_start.index is not index:
+                new_start.index = index
+            new_end = Series(end, name=names[1], copy=False)
+            if new_end.index is not index:
+                new_end.index = index
 
-        start = Series(start, name=names[0], copy=True)
-        if start.index is not index:
-            start.index = index
-        end = Series(end, name=names[1], copy=True)
-        if end.index is not index:
-            end.index = index
-
-        return start, end
+        return new_start, new_end
 
     @staticmethod
     def from_string(
@@ -360,24 +361,8 @@ class RangeSeries(object):
             new_start = np.minimum(new_start, right)
             new_end = np.minimum(new_end, right)
         return RangeSeries(new_start, new_end, set_names=self.names)
-
-    def expand(self, left: Union[Series, ndarray, int], right: Union[Series, ndarray, int, None] = None) -> RangeSeries:
-        if right is None:
-            right = left
-        if isinstance(left, int):
-            if left < 0:
-                raise ValueError(f'left must be >= 0')
-        elif (left < 0).any():
-            raise ValueError(f'left must be >= 0')
-        if isinstance(right, int):
-            if right < 0:
-                raise ValueError(f'right must be >= 0')
-        elif (right < 0).any():
-            raise ValueError(f'right must be >= 0')
-        return RangeSeries(self._start - left, self._start + right, set_names=self.names)
     
-    # TODO: test
-    def shrink(self, left: Union[Series, ndarray, int], right: Union[Series, ndarray, int, None] = None, *, towards: Union[str, int, ndarray, Series] = 'center') -> RangeSeries:
+    def expand(self, left: Union[Series, ndarray, int], right: Union[Series, ndarray, int, None] = None, *, towards: Union[str, int, ndarray, Series] = 'center') -> RangeSeries:
         if right is None:
             right = left
         if isinstance(towards, str):
@@ -391,8 +376,8 @@ class RangeSeries(object):
                 raise ValueError(f'Invalid value for "to": {towards}')
         else:  # wither number or vector
             to_pos = towards
-        new_start = np.minimum(self._start + left, to_pos)
-        new_end = np.maximum(self._end - right, to_pos)
+        new_start = np.minimum(self._start - left, to_pos)
+        new_end = np.maximum(self._end + right, to_pos)
         return RangeSeries(new_start, new_end, set_names=self.names)
 
     def shift(self, d: Union[Series, int]) -> RangeSeries:
@@ -653,14 +638,19 @@ class RangeSeriesGroupBy(object):
     def __init__(
             self,
             ranges: RangeSeries,
-            groups: Union[Iterable[Union[Series, np.ndarray, str]], Series, str],
+            groups: Union[Iterable[Union[Series, np.ndarray, str]], Series, str, None],
             observed: bool = False
     ):
+        if groups is None:
+            groups = tuple()
         if isinstance(groups, Series) or isinstance(groups, str):
             groups = [groups]
-        self._ranges = ranges
+        self._ranges = ranges        
         self._groups = groups
-        self._indices = ranges.start.groupby(groups, observed=observed).indices
+        if len(groups) == 0:
+            self._indices = None
+        else:            
+            self._indices = ranges.start.groupby(groups, observed=observed).indices        
         names = []
         for i, g in enumerate(groups):
             if isinstance(g, str):
@@ -677,7 +667,7 @@ class RangeSeriesGroupBy(object):
 
     # TODO: test
     @property
-    def indices(self) -> Dict[Hashable, np.ndarray]:
+    def indices(self) -> Optional[Dict[Hashable, np.ndarray]]:
         return self._indices
 
     # TODO: test
@@ -692,12 +682,16 @@ class RangeSeriesGroupBy(object):
 
     # TODO: test
     def __len__(self) -> int:
-        return len(self._indices)
+        return len(self._groups)
 
     # TODO: test
     @property
     def names(self) -> Tuple[Hashable, Hashable]:
         return self._ranges.names
+    
+    @property
+    def has_groups(self) -> bool:
+        return len(self._groups) > 0
 
     #######################################################################################
     # ITERATION AND SUBSETS (2. in RangeSeries)
@@ -705,8 +699,8 @@ class RangeSeriesGroupBy(object):
 
     # TODO: cache groups?
     def groups(self):
-        for keys, indices in self._indices:
-            yield self._ranges.subset(indices)
+        for key, indices in self._indices.items():
+            yield key, self._ranges.subset(indices)
 
     #######################################################################################
     # AGGREGATING OR VERTICAL OPERATIONS (8. in RangeSeries)
@@ -718,30 +712,27 @@ class RangeSeriesGroupBy(object):
 
     # TODO: test
     def _run_by_group(self, method, *args, **kwargs) -> Union[Dict[Series], Dict[RangeSeries]]:
-        results = {
-            method(group_range, *args, **kwargs)
-            for group_range in self.groups()
-        }
+        results = [method(group_range, *args, **kwargs) for _, group_range in self.groups()]
         return results
+    
+    # TODO: test
+    def _run_by_group_and_concat(self, method, _concat_fun = pd.concat, *args, **kwargs) -> Union[Series, RangeSeries]:
+        group_results = self._run_by_group(method, *args, **kwargs)
+        return _concat_fun(group_results, names=self._level_names)
 
     # TODO: test
     def min(self) -> Series:
-        return pd.concat(self._run_by_group(RangeSeries.min))
+        return self._run_by_group_and_concat(RangeSeries.min)
 
     # TODO: test
     def max(self) -> Series:
-        return pd.concat(self._run_by_group(RangeSeries.max))
+        return self._run_by_group_and_concat(RangeSeries.max)
 
     # TODO: test
     def range(self) -> RangeSeries:
-        return concat(self._run_by_group(RangeSeries.range))
+        return self._run_by_group_and_concat(RangeSeries.range)
 
     # TODO: test
-    def sort(self, by=None, ascending=True, by_index=True) -> RangeSeries:
-        return concat(self._run_by_group(RangeSeries.sort, by=by, ascending=ascending, by_index=by_index))
-
-    # TODO: test
-    # TODO: what if self-overlapping?
     def is_disjoint(self) -> Series:
         cluster_ids = overlapping_clusters_grouped(self._ranges, groups=self._indices)
         return pd.Series({
@@ -749,26 +740,30 @@ class RangeSeriesGroupBy(object):
         })
 
     # TODO: test
-    # TODO: what if self-overlapping?
     def clusters(self) -> Series:
         cluster_ids = overlapping_clusters_grouped(self._ranges, groups=self._indices)
         return Series(cluster_ids, index=self._ranges.index)
 
     # TODO: test
-    # TODO: what if self-overlapping?
     def union_self(self) -> RangeSeries:
         cluster_ids = overlapping_clusters_grouped(self._ranges, groups=self._indices)        
+        print(cluster_ids)
         to_drop = [lvl for lvl in self._ranges.index.names if lvl not in self._level_names]
         new_index = self._ranges.index
         if len(to_drop) > 0:
-            new_index = new_index.droplevel(to_drop)
-        idx = new_index.to_frame().groupby(cluster_ids).first().set_index(new_index.names).index
+            if set(to_drop) == set(new_index.names):                
+                new_index = pd.RangeIndex(len(new_index))
+            else:
+                new_index = new_index.droplevel(to_drop)
+        print(new_index)        
+        cluster_starts = overlaps.get_idx_of_cluster_starts(cluster_ids)
+        print(cluster_starts)
+        idx = new_index[cluster_starts]
         start = self._ranges.start.groupby(cluster_ids).min()
         end = self._ranges.end.groupby(cluster_ids).max()
         return RangeSeries(start, end, set_index=idx)
 
     # TODO: test
-    # TODO: what if self-overlapping?
     def intersect_self(self) -> RangeSeries:
         if len(self._ranges) == 0:
             return RangeSeries([])
@@ -788,7 +783,7 @@ class RangeSeriesGroupBy(object):
 def overlapping_clusters_grouped(
         ranges: RangeSeries,
         groups: Union[Series, List[Series], str, List[str], Dict[Hashable, np.ndarray], None] = None,
-        ascending: bool = True
+        is_ascending: bool = True
 ) -> np.ndarray:
     if groups is None:
         groups = []
@@ -806,27 +801,31 @@ def overlapping_clusters_grouped(
                 continue
             start = ranges.start.iloc[grp_idx].to_numpy()
             end = ranges.end.iloc[grp_idx].to_numpy()            
-            first_unsorted = overlaps.check_if_sorted(start, end, exc_type=None, ascending=ascending)
+            first_unsorted = overlaps.check_if_sorted(start, end, exc_type=None, ascending=is_ascending)
             if first_unsorted != -1:
                 print(start[:10])  # TODO: temp
                 print(end[:10])  # TODO: temp
                 raise ValueError(f"Group {key} is not sorted at index {first_unsorted}.")
-            grp_cluster_idxs = overlaps.overlapping_clusters(start, end, ascending=ascending)
+            grp_cluster_idxs = overlaps.get_overlapping_clusters(start, end, is_ascending=is_ascending)
             n_found = grp_cluster_idxs.max() + 1
             cluster_idxs[grp_idx] = grp_cluster_idxs + next_cluster_idx
             next_cluster_idx += n_found
     else:
         start = ranges.start.to_numpy()
         end = ranges.end.to_numpy()
-        first_unsorted = overlaps.check_if_sorted(start, end, exc_type=None, ascending=ascending)        
+        first_unsorted = overlaps.check_if_sorted(start, end, exc_type=None, ascending=is_ascending)        
         if first_unsorted != -1:
-            raise ValueError(f"Group {key} is not sorted at index {first_unsorted}.")
-        cluster_idxs = overlaps.overlapping_clusters(start, end, ascending=ascending)
+            raise ValueError(f"Data not sorted at index {first_unsorted}.")
+        cluster_idxs = overlaps.get_overlapping_clusters(start, end, is_ascending=is_ascending)
 
     return cluster_idxs
 
 
-def _get_group_indices(ranges, groups, observed):
+def _get_group_indices(
+        ranges: RangeSeries,
+        groups: Union[None, Series, str, Iterable[Series]],
+        observed: bool
+    ) -> Tuple[Dict[Hashable, np.ndarray], int]:
     if groups is None:
         groups = []
     if isinstance(groups, Series) or isinstance(groups, str):
@@ -863,7 +862,7 @@ def overlapping_pairs_grouped(
             end_b = ranges_b.end.iloc[idx_b].to_numpy()
             overlaps.check_if_sorted(start_a, end_a, raise_msg='RangeSeries A')
             overlaps.check_if_sorted(start_b, end_b, raise_msg='RangeSeries B')
-            group_pairs = overlaps.overlapping_pairs(start_a, end_a, start_b, end_b)
+            group_pairs = overlaps.get_overlapping_pairs(start_a, end_a, start_b, end_b, sort_result=False)
             if group_pairs.size > 0:
                 matched_a.append(idx_a[group_pairs[:, 0]])
                 matched_b.append(idx_b[group_pairs[:, 1]])
@@ -876,7 +875,7 @@ def overlapping_pairs_grouped(
         end_b = ranges_b.end.to_numpy()
         overlaps.check_if_sorted(start_a, end_a, raise_msg='RangeSeries A')
         overlaps.check_if_sorted(start_b, end_b, raise_msg='RangeSeries B')
-        group_pairs = overlaps.overlapping_pairs(start_a, end_a, start_b, end_b)
+        group_pairs = overlaps.get_overlapping_pairs(start_a, end_a, start_b, end_b, sort_result=False)
         matched_a = group_pairs[:, 0]
         matched_b = group_pairs[:, 1]
     sorting_idx = np.lexsort((matched_b, matched_a))  # Notice the order
@@ -904,8 +903,8 @@ def range_set_union(
         groups_a = []
     if groups_b is None:
         groups_b = []
-    prepared_a = ranges_a.reset_index(keep=groups_a, drop=True).sort()
-    prepared_b = ranges_b.reset_index(keep=groups_b, drop=True).sort()
+    prepared_a = ranges_a.reset_index(keep=groups_a, drop=True).sort(by=groups_a)
+    prepared_b = ranges_b.reset_index(keep=groups_b, drop=True).sort(by=groups_b)
     merged = merge_sorted_ranges(prepared_a, prepared_b, groups_a, groups_b)
     new_names = [f'level_{i}' if name is None else name for i, name in enumerate(merged.index.names)]
     merged.index.names = new_names
@@ -922,39 +921,57 @@ def range_set_union(
 
 # TODO: efficiency
 def range_set_intersection(
-        ranges_a: RangeSeries,
-        ranges_b: RangeSeries,
-        groups_a: Union[Iterable[Union[Series, np.ndarray, str]], Series, str, None] = None,
-        groups_b: Union[Iterable[Union[Series, np.ndarray, str]], Series, str, None] = None
+    ranges_a: RangeSeries,
+    ranges_b: RangeSeries,
+    groups_a: Union[Iterable[Union[Series, np.ndarray, str]], Series, str, None] = None,
+    groups_b: Union[Iterable[Union[Series, np.ndarray, str]], Series, str, None] = None
 ) -> RangeSeries:
     if groups_a is not None and groups_b is None:
         groups_b = groups_a
-    prepared_a = ranges_a.groupby(groups_a, observed=True).sort().union_self()
-    prepared_b = ranges_b.groupby(groups_b, observed=True).sort().union_self()
-    pair_ids = overlapping_pairs_grouped(prepared_a, prepared_b, groups_a, groups_b)
-    starts = np.maximum(
-        ranges_a.start.iloc[pair_ids[:, 0]],
-        ranges_b.start.iloc[pair_ids[:, 1]]
-    )
-    ends = np.minimum(
-        ranges_a.end.iloc[pair_ids[:, 0]],
-        ranges_b.end.iloc[pair_ids[:, 1]]
-    )
+    disjoint_a = ranges_a.sort(by=groups_a)
+    print(disjoint_a.to_frame())  # TODO: temp
+    disjoint_a = disjoint_a.groupby(groups_a, observed=True).union_self()
+    disjoint_b = ranges_b.sort(by=groups_b)
+    disjoint_b = disjoint_b.groupby(groups_b, observed=True).union_self()
+    pair_ids = overlapping_pairs_grouped(disjoint_a, disjoint_b, groups_a, groups_b)
+    print(disjoint_a.to_frame())  # TODO: temp
+    print(disjoint_b.to_frame())  # TODO: temp
+    print(pair_ids)  # TODO: temp
+    starts_a = disjoint_a.start.iloc[pair_ids[:, 0]]  #.to_numpy()
+    starts_b = disjoint_b.start.iloc[pair_ids[:, 1]]  #.to_numpy()    
+    ends_a = disjoint_a.end.iloc[pair_ids[:, 0]]  #.to_numpy()
+    ends_b = disjoint_b.end.iloc[pair_ids[:, 1]]  #.to_numpy()
+    # print(starts_a)  # TODO: temp
+    # print(starts_b)  # TODO: temp
+    # print(ends_a)  # TODO: temp
+    # print(ends_b)  # TODO: temp    
+    starts = np.maximum(starts_a, starts_b)
+    ends = np.minimum(ends_a, ends_b)
     merged = RangeSeries(starts, ends)
-    return merged.union_self()
+    print(merged.to_frame())  # TODO: temp
+    result = merged.groupby(groups_a, observed=True).union_self()
+    print(result.to_frame())  # TODO: temp
+    return result
 
 
 # TODO: test
-def concat(ranges: List[RangeSeries] | Dict[Hashable, RangeSeries]) -> RangeSeries:
+def concat(ranges: List[RangeSeries] | Dict[Hashable, RangeSeries], names: Optional[List[str]] = None) -> RangeSeries:
     if isinstance(ranges, dict):
         starts = {k: r.start for k, r in ranges.items()}
         ends = {k: r.end for k, r in ranges.items()}
     else:
         starts = [r.start for r in ranges]
         ends = [r.end for r in ranges]
-    new_start = pd.concat(starts)
-    new_end = pd.concat(ends)
-    return RangeSeries(new_start, new_end)
+    # if names is not None and len(names) == 0:  # Don't concat if there are no groups
+    #     assert len(starts) == 1        
+    #     new_start, *_ = starts.values()
+    #     new_end, *_ = ends.values()
+    # else:
+    new_start = pd.concat(starts, names=names)
+    new_end = pd.concat(ends, names=names)
+    res = RangeSeries(new_start, new_end)
+    print(res.to_frame())  # TODO: temp
+    return res
 
 
 def _extract_index(index: pd.Index, groups: List):
@@ -993,19 +1010,19 @@ def merge_sorted_ranges(
             f"Must provide the same number of group levels (current: {len(groups_a)} vs {len(groups_b)})."
         )
     n = len(ranges_a) + len(ranges_b)
-    new_starts = np.full(n, -1, dtype=int)  # TODO: change to empty
-    new_ends = np.full(n, -1, dtype=int)
+    new_starts = np.empty(n, dtype=int)
+    new_ends = np.empty(n, dtype=int)
     index_a = _extract_index(ranges_a.index, groups_a)
     index_b = _extract_index(ranges_b.index, groups_b)
     concatenated_index = index_a.append(index_b)
+    concatenated_index.names = index_a.names
     if len(groups_a) > 0:  # and len(groups_b) > 0
-        mergred_indexes = list(_match_dict_items(
-            _get_group_indices(ranges_a, groups_a, observed=True),
-            _get_group_indices(ranges_b, groups_b, observed=True)
-        ))  # TODO: list
+        _indices_a, _n_grouping_cols_a = _get_group_indices(ranges_a, groups_a, observed=True)
+        _indices_b, _n_grouping_cols_b = _get_group_indices(ranges_b, groups_b, observed=True)
+        mergred_indexes = list(_match_dict_items(_indices_a, _indices_b))
         group_start = 0
         b_offset = len(ranges_a)
-        index_perm = np.full(n, -1, dtype=int)
+        index_perm = np.empty(n, dtype=int)
         for _, group_idx_a, group_idx_b in mergred_indexes:
             group_size = len(group_idx_a) + len(group_idx_b)
             start_a = ranges_a.start.iloc[group_idx_a].to_numpy()

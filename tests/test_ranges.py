@@ -88,19 +88,19 @@ def overlapping_clusters_grouped_cases(request):
 
 def test__overlapping_clusters_grouped__indexes(overlapping_clusters_grouped_cases):
     df, groups, expected_indices = overlapping_clusters_grouped_cases
-    iv = RangeSeries(df)
+    rs = RangeSeries(df)
     expected_indices = np.array(expected_indices)
-    result_indices = overlapping_clusters_grouped(iv, groups)
+    result_indices = overlapping_clusters_grouped(rs, groups)
     assert_array_equal(result_indices, expected_indices)
 
 
 def test__overlapping_clusters_grouped__series(overlapping_clusters_grouped_cases):
     df, groups, expected_indices = overlapping_clusters_grouped_cases
     df = df.reset_index()
-    iv = RangeSeries(df)
+    rs = RangeSeries(df)
     expected_indices = np.array(expected_indices)
     group_series = [df[grp] for grp in groups]
-    result_indices = overlapping_clusters_grouped(iv, group_series)
+    result_indices = overlapping_clusters_grouped(rs, group_series)
     assert_array_equal(result_indices, expected_indices)
 
 
@@ -265,10 +265,10 @@ def overlapping_pairs_grouped_cases(request):
 
 def test__overlapping_pairs_grouped__indexes(overlapping_pairs_grouped_cases):
     df1, df2, groups1, groups2, expected_indices = overlapping_pairs_grouped_cases
-    iv1 = RangeSeries(df1)
-    iv2 = RangeSeries(df2)
+    rs1 = RangeSeries(df1)
+    rs2 = RangeSeries(df2)
     expected_indices = np.array(expected_indices, dtype=int).reshape((len(expected_indices), 2))
-    result_indices = overlapping_pairs_grouped(iv1, iv2, groups1, groups2)  # TODO : test observed parameter
+    result_indices = overlapping_pairs_grouped(rs1, rs2, groups1, groups2)  # TODO : test observed parameter
     assert_array_equal(result_indices, expected_indices)
 
 
@@ -276,12 +276,12 @@ def test__overlapping_pairs_grouped__series(overlapping_pairs_grouped_cases):
     df1, df2, groups1, groups2, expected_indices = overlapping_pairs_grouped_cases
     df1 = df1.reset_index()
     df2 = df2.reset_index()
-    iv1 = RangeSeries(df1)
-    iv2 = RangeSeries(df2)
+    rs1 = RangeSeries(df1)
+    rs2 = RangeSeries(df2)
     expected_indices = np.array(expected_indices, dtype=int).reshape((len(expected_indices), 2))
     group_series_1 = [df1[grp] for grp in groups1]
     group_series_2 = [df2[grp] for grp in groups2]
-    result_indices = overlapping_pairs_grouped(iv1, iv2, group_series_1, group_series_2)  # TODO : test observed parameter
+    result_indices = overlapping_pairs_grouped(rs1, rs2, group_series_1, group_series_2)  # TODO : test observed parameter
     assert_array_equal(result_indices, expected_indices)
 
 
@@ -549,24 +549,11 @@ def merge_sorted_ranges_cases(request):
 
 def test__merge_sorted_ranges__indexes(merge_sorted_ranges_cases):
     df1, df2, groups1, groups2, expected_df = merge_sorted_ranges_cases
-    iv1 = RangeSeries(df1)
-    iv2 = RangeSeries(df2)
+    rs1 = RangeSeries(df1)
+    rs2 = RangeSeries(df2)
     expected = RangeSeries(expected_df)
-    result = merge_sorted_ranges(iv1, iv2, groups1, groups2)  # TODO : test observed parameter
+    result = merge_sorted_ranges(rs1, rs2, groups1, groups2)  # TODO : test observed parameter
     assert_ranges_equal(result, expected)
-
-
-# def test__merge_sorted_ranges__series(merge_sorted_ranges_cases):
-#     df1, df2, groups1, groups2, expected_df = merge_sorted_ranges_cases
-#     df1 = df1.reset_index()
-#     df2 = df2.reset_index()
-#     iv1 = RangeSeries(df1)
-#     iv2 = RangeSeries(df2)
-#     expected = RangeSeries(expected_df)
-#     group_series_1 = [df1[grp] for grp in groups1]
-#     group_series_2 = [df2[grp] for grp in groups2]
-#     result = merge_sorted_ranges(iv1, iv2, group_series_1, group_series_2)
-#     assert_ranges_equal(result, expected)
 
 
 _range_set_union_test_cases = {
@@ -770,21 +757,21 @@ def range_set_union_cases(request):
 
 def test__range_set_union__indexes(range_set_union_cases):
     df1, df2, groups1, groups2, expected_df = range_set_union_cases
-    iv1 = RangeSeries(df1)
-    iv2 = RangeSeries(df2)
+    rs1 = RangeSeries(df1)
+    rs2 = RangeSeries(df2)
     expected = RangeSeries(expected_df)
-    result = range_set_union(iv1, iv2, groups1, groups2)  # TODO : test observed parameter
+    result = range_set_union(rs1, rs2, groups1, groups2)  # TODO : test observed parameter
     assert_ranges_equal(result, expected)
 
 
 # def test__range_set_union__series(range_set_union_cases):
 #     df1, df2, groups1, groups2, expected_df = range_set_union_cases
-#     iv1 = RangeSeries(df1)
-#     iv2 = RangeSeries(df2)
+#     rs1 = RangeSeries(df1)
+#     rs2 = RangeSeries(df2)
 #     expected = RangeSeries(expected_df)
 #     group_series_1 = [df1[grp] for grp in groups1]
 #     group_series_2 = [df2[grp] for grp in groups2]
-#     result = range_set_union(iv1, iv2, group_series_1, group_series_2)
+#     result = range_set_union(rs1, rs2, group_series_1, group_series_2)
 #     assert_ranges_equal(result, expected)
 
 
@@ -822,7 +809,7 @@ _range_set_intersection_test_cases = {
             'g1': ['X', 'X', 'Y', 'Y'],
             'start': [20, 80, 25, 85],
             'end': [30, 90, 35, 95]
-        })
+        }).set_index(['g1'])
     ),
     'double_str_index': (
         DataFrame({
@@ -830,20 +817,20 @@ _range_set_intersection_test_cases = {
             'g2': ['X', 'X', 'X', 'Y', 'Y', 'Y'],
             'start': [10, 50, 80, 15, 55, 85],
             'end': [30, 70, 90, 35, 75, 95]
-        }).set_index(['g1']),
+        }).set_index(['g1', 'g2']),
         DataFrame({
             'g1': ['A', 'A', 'A', 'A'],
             'g2': ['Y', 'Y', 'X', 'X'],
             'start': [25, 75, 20, 70],
             'end': [45, 95, 40, 90]
-        }).set_index(['g1']),
+        }).set_index(['g1', 'g2']),
         ['g1', 'g2'], ['g1', 'g2'],
         DataFrame({
             'g1': ['A', 'A', 'A', 'A'],
             'g2': ['X', 'X', 'Y', 'Y'],
             'start': [20, 80, 25, 85],
             'end': [30, 90, 35, 95]
-        })
+        }).set_index(['g1', 'g2'])
     ),
     'only_level_1_index': (
         DataFrame({
@@ -863,7 +850,7 @@ _range_set_intersection_test_cases = {
             'g1': ['A', 'A'],
             'start': [20, 80],
             'end': [30, 90]
-        })
+        }).set_index(['g1'])
     ),
     'only_level_2_index': (
         DataFrame({
@@ -880,10 +867,10 @@ _range_set_intersection_test_cases = {
         }).set_index(['g1', 'g2']),
         ['g2'], ['g2'],
         DataFrame({
-            'g1': ['A', 'A'],
+            'g2': ['A', 'A'],
             'start': [20, 80],
             'end': [30, 90]
-        })
+        }).set_index(['g2'])
     ),
     'single_int_index': (
         DataFrame({
@@ -901,7 +888,7 @@ _range_set_intersection_test_cases = {
             'g1': [1, 1, 2, 2],
             'start': [20, 80, 25, 85],
             'end': [30, 90, 35, 95]
-        })
+        }).set_index(['g1'])
     ),
     'different_index_names': (
         DataFrame({
@@ -922,7 +909,7 @@ _range_set_intersection_test_cases = {
             'g2': ['X', 'X', 'Y', 'Y'],
             'start': [20, 80, 25, 85],
             'end': [30, 90, 35, 95]
-        })
+        }).set_index(['g1', 'g2'])
     ),
     'different_index_order': (
         DataFrame({
@@ -943,7 +930,7 @@ _range_set_intersection_test_cases = {
             'g2': ['X', 'X', 'Y', 'Y'],
             'start': [20, 80, 25, 85],
             'end': [30, 90, 35, 95]
-        })
+        }).set_index(['g1', 'g2'])
     ),
     'left_frame_empty': (
         DataFrame({'start': [], 'end': []}, dtype=int),
@@ -983,19 +970,25 @@ def range_set_intersection_cases(request):
 
 def test__range_set_intersection__indexes(range_set_intersection_cases):
     df1, df2, groups1, groups2, expected_df = range_set_intersection_cases
-    iv1 = RangeSeries(df1)
-    iv2 = RangeSeries(df2)
+    rs1 = RangeSeries(df1)
+    rs2 = RangeSeries(df2)
     expected = RangeSeries(expected_df)
-    result = range_set_intersection(iv1, iv2, groups1, groups2)
+    print(rs1.to_frame())
+    print(rs2.to_frame())
+    print(expected.to_frame())
+    print('>' * 80)
+    result = range_set_intersection(rs1, rs2, groups1, groups2)
     assert_ranges_equal(result, expected)
 
 
 def test__range_set_intersection__series(range_set_intersection_cases):
     df1, df2, groups1, groups2, expected_df = range_set_intersection_cases
-    iv1 = RangeSeries(df1)
-    iv2 = RangeSeries(df2)
-    group_series_1 = [df1[grp] for grp in groups1]
-    group_series_2 = [df2[grp] for grp in groups2]
+    df1_noidx = df1.reset_index()
+    df2_noidx = df2.reset_index()
+    rs1 = RangeSeries(df1)
+    rs2 = RangeSeries(df2)
+    group_series_1 = [df1_noidx[grp] for grp in groups1]
+    group_series_2 = [df2_noidx[grp] for grp in groups2]
     expected = RangeSeries(expected_df)
-    result = range_set_intersection(iv1, iv2, group_series_1, group_series_2)
+    result = range_set_intersection(rs1, rs2, group_series_1, group_series_2)
     assert_ranges_equal(result, expected)

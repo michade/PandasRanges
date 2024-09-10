@@ -1,13 +1,13 @@
 comment,A_start,A_end,offset,shift_left,shift_right,expand_left_start,expand_left_end,expand_right_start,expand_right_end,expand_both_start,expand_both_end
-"nonempty, even, abs(x)>len, x<0",10,20,-100,-90,-80,20,20,10,10,20,20
-"nonempty, even, abs(x)=len, x<0",10,20,-10,0,10,20,20,10,10,20,20
+"nonempty, even, abs(x)>len, x<0",10,20,-100,-90,-80,15,20,10,15,15,15
+"nonempty, even, abs(x)=len, x<0",10,20,-10,0,10,15,20,10,15,15,15
 "nonempty, even, abs(x)<len, x<0",10,20,-1,9,19,11,20,10,19,11,19
 "nonempty, even, x==0",10,20,0,10,20,10,20,10,20,10,20
 "nonempty, even, abs(x)<len, x>0",10,20,1,11,21,9,20,10,21,9,21
 "nonempty, even, abs(x)=len, x>0",10,20,10,20,30,0,20,10,30,0,30
 "nonempty, even, abs(x)>len, x>0",10,20,100,110,120,-90,20,10,120,-90,120
-"nonempty, odd, abs(x)>len, x<0",10,21,-100,-90,-80,21,21,10,10,21,21
-"nonempty, odd, abs(x)=len, x<0",10,21,-11,0,10,21,21,10,10,21,21
+"nonempty, odd, abs(x)>len, x<0",10,21,-100,-90,-80,15,21,10,15,15,15
+"nonempty, odd, abs(x)=len, x<0",10,21,-11,0,10,15,21,10,15,15,15
 "nonempty, odd, abs(x)<len, x<0",10,21,-1,9,20,11,21,10,20,11,20
 "nonempty, odd, x==0",10,21,0,10,21,10,21,10,21,10,21
 "nonempty, odd, abs(x)<len, x>0",10,21,1,11,20,9,21,10,22,9,22

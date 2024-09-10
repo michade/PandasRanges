@@ -7,6 +7,15 @@ from PandasRanges.overlaps import *
 from PandasRanges.overlaps_cy import *
 
 
+def backup_arrays(*arrays):
+    return [x.copy() for x in arrays]
+
+
+def assert_arrays_unchanged(arrays, backups):
+    for x, x_backup in zip(arrays, backups):
+        assert_array_equal(x, x_backup)
+
+
 # (start_a, end_a, start_b, end_b), matching_index_pairs
 _overlapping_pairs_test_cases = {
     'first-empty': (
@@ -75,15 +84,15 @@ _overlapping_pairs_test_cases = {
         ),
         [(0, 0), (1, 0), (2, 0)]
     ),
-    # 'two-by-two-plus-one': (
-    #     (
-    #         [10, 30],
-    #         [30, 40],
-    #         [10, 10, 20],
-    #         [20, 40, 40]
-    #     ),
-    #     [(0, 0), (0, 1), (0, 2), (1, 1), (1, 2)]
-    # ),
+    'two-by-two-plus-one': (
+        (
+            [10, 30],
+            [30, 40],
+            [10, 10, 20],
+            [20, 40, 40]
+        ),
+        [(0, 0), (0, 1), (0, 2), (1, 1), (1, 2)]
+    ),
     'three-by-three': (
         (
             [10, 20, 30],
@@ -133,7 +142,7 @@ def overlapping_pairs_cases(request):
 
 @pytest.fixture(
     params=['int64'], #, 'int32', 'uint32', 'uint64'],
-    scope='module'
+    scope='function'
 )
 def overlapping_pairs_cases_typed_arrays(request, overlapping_pairs_cases):
     coords, expected = overlapping_pairs_cases
@@ -146,16 +155,20 @@ def overlapping_pairs_cases_typed_arrays(request, overlapping_pairs_cases):
 def test__count_overlapping_pairs(overlapping_pairs_cases_typed_arrays):
     (start_a, end_a, start_b, end_b), expected = overlapping_pairs_cases_typed_arrays
     expected = len(expected)
+    backups = backup_arrays(start_a, end_a, start_b, end_b)
     result = count_overlapping_pairs(start_a, end_a, start_b, end_b)
     assert result == expected
+    assert_arrays_unchanged((start_a, end_a, start_b, end_b), backups)
 
 
 def test__get_overlapping_pairs(overlapping_pairs_cases_typed_arrays):
     (start_a, end_a, start_b, end_b), expected = overlapping_pairs_cases_typed_arrays
+    backups = backup_arrays(start_a, end_a, start_b, end_b)
     result = get_overlapping_pairs(start_a, end_a, start_b, end_b)
     assert_array_equal(result, expected)
+    assert_arrays_unchanged((start_a, end_a, start_b, end_b), backups)
 
-
+ 
 # def test__overlapping_pairs__nosort():
 #     # heavily implementation-dependent
 #     start_a = np.array([10, 20])
@@ -310,6 +323,20 @@ _overlapping_clusters_test_cases = {
             [50, 40, 50, 80, 90]
         ),
         [0, 0, 0, 1, 1]
+    ),
+    'empty-regions': (
+        (
+            [10, 30, 20, 50, 50],
+            [40, 30, 50, 50, 60]
+        ),
+        [0, 0, 0, 1, 2]
+    ),
+    'cluster-with-only-empty-regions': (
+        (
+            [10, 30, 60],
+            [20, 30, 70]
+        ),
+        [0, 1, 2]
     )
 }
 
@@ -323,13 +350,44 @@ def overlapping_clusters_cases(request):
     return request.param
 
 
-def test__overlapping_clusters(overlapping_clusters_cases):
-    (start, end), expected = overlapping_clusters_cases
-    start = np.array(start, dtype=int)
-    end = np.array(end, dtype=int)
-    expected = np.array(expected, dtype=int)
-    result = overlapping_clusters(start, end)
+@pytest.fixture(
+    params=['int64'], #, 'int32', 'uint32', 'uint64'],
+    scope='function'
+)
+def overlapping_clusters_cases_typed_arrays(request, overlapping_clusters_cases):
+    coords, expected = overlapping_clusters_cases
+    dtype = request.param
+    coords = tuple(np.array(c, dtype=dtype) for c in coords)
+    expected = np.array(expected, dtype=dtype)
+    return coords, expected
+
+
+
+def test__count_overlapping_clusters(overlapping_clusters_cases_typed_arrays):
+    (start, end), expected = overlapping_clusters_cases_typed_arrays
+    expected = len(expected)
+    backups = backup_arrays(start, end)
+    assert_array_equal(count_overlapping_clusters(start, end), expected)
+    assert_arrays_unchanged((start, end), backups)
+
+
+def test__get_overlapping_clusters(overlapping_clusters_cases_typed_arrays):
+    (start, end), expected = overlapping_clusters_cases_typed_arrays 
+    backups = backup_arrays(start, end)
+    result = get_overlapping_clusters(start, end)
     assert_array_equal(result, expected)
+    assert_arrays_unchanged((start, end), backups)
+
+
+def test__get_overlapping_clusters_rev(overlapping_clusters_cases_typed_arrays):
+    (start, end), expected = overlapping_clusters_cases_typed_arrays
+    start = start[::-1]
+    end = end[::-1]
+    expected = expected[::-1]
+    backups = backup_arrays(start, end)
+    result = get_overlapping_clusters(start, end, is_ascending=False)
+    assert_array_equal(result, expected)
+    assert_arrays_unchanged((start, end), backups)
 
 
 @pytest.mark.parametrize(
@@ -413,26 +471,35 @@ def sorted_ranges_test_cases(request):
     return request.param
 
 
-def test__get_first_unsorted_index_in_ranges(sorted_ranges_test_cases):
-    start, end, expected = sorted_ranges_test_cases
-    result = get_first_unsorted_index_in_ranges(start, end, ascending=True)
-    assert result == expected
-    start_rev = start[::-1]
-    end_rev = end[::-1]
-    expected_rev = -1 if expected == -1 else len(start) - expected
-    result = get_first_unsorted_index_in_ranges(start_rev, end_rev, ascending=False)
-    assert result == expected_rev
-
-
 def test__get_first_unsorted_index_in_points(sorted_ranges_test_cases):
     start, end, expected = sorted_ranges_test_cases
-    points = 1000 * start + end
-    result = get_first_unsorted_index_in_points(points, ascending=True)
+    points = 10_000 * start + end
+    result = get_first_unsorted_index_in_points(points)
+    assert result == expected    
+
+
+def test__get_first_unsorted_index_in_points_desc(sorted_ranges_test_cases):
+    start, end, expected = sorted_ranges_test_cases
+    points = 10_000 * start + end
+    points = points[::-1]    
+    expected = -1 if expected == -1 else len(start) - expected
+    result = get_first_unsorted_index_in_points(points, ascending=False)
     assert result == expected
-    points_rev = points[::-1]
-    expected_rev = -1 if expected == -1 else len(start) - expected
-    result = get_first_unsorted_index_in_points(points_rev, ascending=False)
-    assert result == expected_rev
+
+
+def test__get_first_unsorted_index_in_ranges(sorted_ranges_test_cases):
+    start, end, expected = sorted_ranges_test_cases
+    result = get_first_unsorted_index_in_ranges(start, end)
+    assert result == expected
+
+
+def test__get_first_unsorted_index_in_ranges_desc(sorted_ranges_test_cases):
+    start, end, expected = sorted_ranges_test_cases
+    start = start[::-1]
+    end = end[::-1]
+    expected = -1 if expected == -1 else len(start) - expected
+    result = get_first_unsorted_index_in_ranges(start, end, ascending=False)
+    assert result == expected
 
 
 def test__check_if_sorted_dont_raise(sorted_ranges_test_cases):

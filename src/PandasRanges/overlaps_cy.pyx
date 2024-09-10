@@ -9,10 +9,16 @@ from cython cimport Py_ssize_t
 from cython.operator import dereference as deref
 from libcpp.vector cimport vector
 from libcpp.pair cimport pair
+from libcpp.queue cimport priority_queue
 
 
 # TODO: more types
 ctypedef long coord_t
+
+
+###############################################################
+### Utilities
+###############################################################
 
 
 cdef class BinaryMinHeapOnVector():
@@ -119,20 +125,63 @@ cdef class IterableMinQueue():
         return str(list(self))
 
 
-def is_ranges_sorted(cython.integral[:] start, cython.integral[:] end) -> bool:
+def get_first_unsorted_index_in_points(cython.integral[:] coord, bint ascending = True) -> int:    
     cdef Py_ssize_t i
-    for i in range(1, start.shape[0]):
-        if start[i] < start[i - 1] or (start[i] == start[i - 1] and end[i] < end[i - 1]):
-            return False
-    return True
+    cdef Py_ssize_t n = coord.shape[0]
+    if n < 2:
+        return -1
+    if ascending:
+        for i in range(1, n):
+            if coord[i] < coord[i - 1]:
+                return i
+    else:
+        for i in range(1, n):
+            if coord[i] > coord[i - 1]:
+                return i
+    return -1
 
 
-def is_ranges_valid(cython.integral[:] start, cython.integral[:] end) -> bool:
+def get_first_unsorted_index_in_ranges(cython.integral[:] start, cython.integral[:] end, bint ascending = True) -> int:
+    cdef Py_ssize_t i    
+    cdef Py_ssize_t n = start.shape[0]
+    if n < 2:
+        return -1
+    cdef coord_t curr_start = start[1]
+    cdef coord_t prev_start = start[0]
+    if ascending:
+        for i in range(1, n):
+            curr_start = start[i]
+            if curr_start < prev_start:
+                return i
+            elif curr_start == prev_start:
+                if end[i] < end[i - 1]:
+                    return i
+            else:
+                prev_start = curr_start
+    else:
+        for i in range(1, n):
+            curr_start = start[i]
+            if curr_start > prev_start:
+                return i
+            elif curr_start == prev_start:
+                if end[i] > end[i - 1]:
+                    return i
+            else:
+                prev_start = curr_start
+    return -1
+
+
+def get_first_invalid_range_index(cython.integral[:] start, cython.integral[:] end):
     cdef Py_ssize_t i
     for i in range(start.shape[0]):
         if start[i] > end[i]:
-            return False
-    return True
+            return i
+    return -1
+
+
+###############################################################
+### Overlaps
+###############################################################
 
 
 def overlapping_pairs_impl(
@@ -145,8 +194,6 @@ def overlapping_pairs_impl(
     cdef bint only_count = result is None
     cdef Py_ssize_t n_overlaps = 0  # doubles as next position in result!
 
-    # expansion and type promotion (coord_t -> coord_t) happens
-    # immediately after extracting start or end value from a stream
     # "stream" = "list of ranges"                 
     cdef Py_ssize_t len_a = start_a.shape[0]
     cdef Py_ssize_t len_b = start_b.shape[0]    
@@ -154,7 +201,7 @@ def overlapping_pairs_impl(
     if len_a == 0 or len_b == 0:
         return 0  # no elements in one of the streams, so intersection is empty
 
-    cdef coord_t SENTINEL = 9999 # max(end_a[len_a - 1], end_b[len_b - 1]) + max(expand_end_a, 0) + 1 # sentinel is greater than any other value
+    cdef coord_t SENTINEL = max(end_a[len_a - 1], end_b[len_b - 1]) + max(expand_end_a, 0) + 1 # sentinel is greater than any other value
 
     cdef BinaryMinHeapOnVector open_a = BinaryMinHeapOnVector()
     cdef BinaryMinHeapOnVector open_b = BinaryMinHeapOnVector()
@@ -234,3 +281,121 @@ def overlapping_pairs_impl(
             # else: # a and b are in fact both sentinels
 
     return n_overlaps
+
+
+def overlapping_clusters_impl(
+    Py_ssize_t[:] result,
+    coord_t[:] start not None,
+    coord_t[:] end not None,
+    coord_t expand_start,
+    coord_t expand_end,
+    bint is_ascending
+) -> Py_ssize_t:
+    cdef bint only_count = result is None    
+    cdef Py_ssize_t n_ranges = start.shape[0]
+
+    if n_ranges == 0:
+        return 0
+
+    cdef Py_ssize_t idx    
+    cdef Py_ssize_t d_idx
+    cdef Py_ssize_t stop_idx
+    if is_ascending:
+        idx = 0
+        d_idx = 1
+        stop_idx = n_ranges
+    else:
+        idx = n_ranges - 1
+        d_idx = -1
+        stop_idx = -1
+
+    cdef coord_t SENTINEL = end[stop_idx - d_idx] + max(expand_end, 0) + 1  # sentinel is greater than any other value
+    cdef Py_ssize_t n_clusters = 0
+    cdef priority_queue[coord_t] open_ranges = priority_queue[coord_t]()    
+    cdef coord_t next_start = start[idx]
+    cdef coord_t next_end = SENTINEL
+        
+    while idx != stop_idx:
+        if next_start < next_end:  # "=" is important here            
+            # next point is the start of a region -> we open that region
+            # here there is no way that the stream has ended, bc sentinel is always greater than any other value
+            if not only_count:
+                result[idx] = n_clusters            
+            open_ranges.push(-(end[idx] + expand_end))
+            # advance stream and update next coords
+            idx += d_idx
+            next_start = start[idx] - expand_start if idx != stop_idx else SENTINEL
+            next_end = -open_ranges.top()
+        else:  # next_start > next_end
+            # next point is the end of a region -> we close that region
+            open_ranges.pop()
+            if open_ranges.empty():
+                n_clusters += 1
+                next_end = SENTINEL
+            else:
+                next_end = -open_ranges.top()
+                
+    return n_ranges
+
+
+def target_indices_to_permutation_impl(
+    cython.integral[:] result not None,
+    cython.integral[:] indices_a not None,
+    cython.integral[:] indices_b not None
+):
+    cdef Py_ssize_t n_a = indices_a.shape[0]
+    cdef Py_ssize_t i
+    for i in range(n_a):
+        result[indices_a[i]] = i
+    for i in range(indices_b.shape[0]):
+        result[indices_b[i]] = i + n_a
+
+
+def mergesort_ranges_indices_impl(
+    Py_ssize_t[:] indices_a not None, Py_ssize_t[:] indices_b not None,
+    coord_t[:] start_a not None, coord_t[:] end_a not None,
+    coord_t[:] start_b not None, coord_t[:] end_b not None
+):
+    cdef Py_ssize_t len_a = start_a.shape[0]
+    cdef Py_ssize_t len_b = start_b.shape[0]
+    cdef Py_ssize_t total_length = len_a + len_b
+
+    cdef coord_t SENTINEL = max(end_a[len_a - 1], end_b[len_b - 1]) + 1 # sentinel is greater than any other value
+
+    cdef Py_ssize_t idx_a = 0
+    cdef Py_ssize_t idx_b = 0
+    cdef Py_ssize_t idx_res = 0    
+    while idx_res < total_length:
+        s_a = start_a[idx_a] if idx_a < len_a else SENTINEL
+        s_b = start_b[idx_b] if idx_b < len_b else SENTINEL
+        if s_a < s_b:  # Take from A
+            indices_a[idx_a] = idx_res
+            idx_a += 1
+        elif s_a > s_b:  # Take from B
+            indices_b[idx_b] = idx_res
+            idx_b += 1
+        else:  # s_a == s_b
+            e_a = end_a[idx_a] if idx_a < len_a else SENTINEL
+            e_b = end_b[idx_b] if idx_b < len_b else SENTINEL
+            if e_a <= e_b:  # Take from A
+                indices_a[idx_a] = idx_res
+                idx_a += 1
+            else:  # Take from B
+                indices_b[idx_b] = idx_res
+                idx_b += 1
+        idx_res += 1
+
+
+def get_idx_of_cluster_starts_impl(cython.integral[:] result not None, cython.integral[:] cluster_id not None):    
+    cdef Py_ssize_t n = cluster_id.shape[0]
+    if n == 0:
+        return    
+    cdef Py_ssize_t curr_cluster = cluster_id[0]
+    cdef Py_ssize_t n_clusters = 1
+    result[0] = 0
+    cdef Py_ssize_t i
+    for i in range(1, n):
+        if cluster_id[i] != curr_cluster:
+            curr_cluster = cluster_id[i]
+            result[n_clusters] = i
+            n_clusters += 1
